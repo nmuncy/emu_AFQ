@@ -61,11 +61,7 @@ def main():
 
         h_subj = f"sub-{tar_str[0:4]}"
         h_sess = f"ses-{tar_str[4:6]}"
-        if not os.path.exists(
-            os.path.join(
-                work_dir, f"dset/{h_subj}/{h_sess}/anat/{h_subj}_{h_sess}_T1w.nii.gz"
-            )
-        ):
+        if not os.path.exists(os.path.join(work_dir, f"dset/{h_subj}/{h_sess}/func")):
             sbatch_job = f"""
                 sbatch \
                 -J "G0{tar_str}" -t 2:00:00 --mem=1000 --ntasks-per-node=1 \
