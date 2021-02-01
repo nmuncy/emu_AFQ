@@ -15,7 +15,7 @@ mkdir -p $out_dir
 
 cd $dset_dir
 for subj in sub*; do
-# subj=sub-4000
+	# subj=sub-4000
 
 	subj_dir=${deriv_dir}/${subj}/ses-S2
 	data_dir=${dset_dir}/${subj}/ses-S2/dwi
@@ -30,7 +30,7 @@ for subj in sub*; do
 	fi
 
 	# submit job
-	if [ ! -d ${subj_dir}/dti_scan/dti30trilin ]; then
+	if [ ! -f ${subj_dir}/dti96trilin/dt6.mat ]; then
 		sbatch \
 		-o ${out_dir}/output_${subj}.txt \
 		-e ${out_dir}/error_${subj}.txt \

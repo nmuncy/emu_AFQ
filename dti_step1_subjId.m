@@ -8,7 +8,8 @@ display(x);
 var = getenv('HOME');
 
 % Add modules to MATLAB. ORDER IS IMPORTANT! Do not change the order of these programs:
-SPM8Path = [var, '/matlab/spm8'];
+% SPM8Path = [var, '/matlab/spm8'];
+SPM8Path = '/home/applications/spm12'
 addpath(genpath(SPM8Path));
 vistaPath = [var, '/matlab/vistasoft'];
 addpath(genpath(vistaPath));
@@ -47,12 +48,13 @@ dwParams = dtiInitParams('rotateBvecsWithCanXform', 1, 'phaseEncodeDir', 1, 'clo
 dtiInit(dtiFile, 'MNI', dwParams);
 
 % Clean up files and exit:
-movefile('dti_a*', 'ses-S2/');
-movefile('dti_b*', 'ses-S2/');
+movefile('dwi_a*', 'ses-S2/');
+movefile('dwi_b*', 'ses-S2/');
 movefile('dtiInitLog.mat', 'ses-S2/');
 movefile('ROIs', '*trilin');
 movefile('*trilin', 'ses-S2/');
-movefile('dti6*', 'ses-S2/');
+%movefile('dti9*', 'ses-S2/');
+movefile('Vox*', 'ses-S2/');
 movefile('MNI_EPI.nii.gz', 'ses-S2/');
 
 exit;
