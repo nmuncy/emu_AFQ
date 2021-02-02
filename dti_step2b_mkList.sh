@@ -37,7 +37,8 @@ for ind in ${!subjList[@]}; do
     if [ -f ${subjPath}/dt6.mat ]; then
 
         # write path
-        echo "[var, '${subjPath}/'], ..." >> $print1
+        # echo "[var, '${subjPath}/'], ..." >> $print1
+        echo "'${subjPath}/', ..." >> $print1
 
         # write group membership (>3 == anxious)
         if [ $grp -gt 3 ]; then
