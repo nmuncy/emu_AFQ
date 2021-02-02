@@ -16,7 +16,7 @@ load /scratch/madlab/emu_diff/derivatives/Analyses/AFQ/sub_group.mat
 
 % set out vars
 % outdir = fullfile([var, '/compute/TBI/Analyses/AFQ/']);
-outdir = fullfile('/scratch/madlab/emu_diff/derivatives/Analyses/AFQ/']);
+outdir = fullfile('/scratch/madlab/emu_diff/derivatives/Analyses/AFQ/');
 outname = fullfile(outdir, ['afq_TBI_MS']);
 
 % work
