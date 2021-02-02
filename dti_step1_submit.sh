@@ -9,13 +9,12 @@ dset_dir=${parent_dir}/dset
 # set output vars
 slurm_dir=${deriv_dir}/Slurm_out
 time=`date '+%Y_%m_%d-%H_%M_%S'`
-out_dir=${slurm_dir}/dtiInit_job1_${time}
+out_dir=${slurm_dir}/dti1_${time}
 mkdir -p $out_dir
 
-
+# copy data, run job for e/subject
 cd $dset_dir
 for subj in sub*; do
-	# subj=sub-4000
 
 	subj_dir=${deriv_dir}/${subj}/ses-S2
 	data_dir=${dset_dir}/${subj}/ses-S2/dwi
