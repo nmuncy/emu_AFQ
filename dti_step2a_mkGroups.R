@@ -1,3 +1,11 @@
+### --- Notes:
+#
+# Assumes emuR01_pars_latest.csv exists in
+# current working dir, mines it for useful info.
+#
+# Could be a single python script if I was
+# better at pandas =)
+
 data_dir <- getwd()
 
 # import, reduce data
