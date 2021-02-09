@@ -29,8 +29,8 @@ def main():
     # write config.toml
     toml_file = os.path.join(code_dir, "config.toml")
 
+    # "name": "pyAFQ config file",
     conf_dict = {
-        "name": "pyAFQ config file",
         "files": {"dmriprep_folder": vista_dir},
         "BIDS": {"bids_path": bids_dir},
         "TRACTOGRAPHY": {"directions": "prob"},
