@@ -1,39 +1,43 @@
 #!/bin/bash
 
 # set orienting vars
-code_dir=~/compute/emu_diff
-parent_dir=/scratch/madlab/emu_diff
-deriv_dir=${parent_dir}/derivatives
-dset_dir=${parent_dir}/dset
+codeDir=~/compute/emu_diff
+parentDir=/scratch/madlab/emu_diff
+derivDir=${parentDir}/derivatives
+dsetDir=${parentDir}/dset
 
 # set output vars
-slurm_dir=${deriv_dir}/Slurm_out
+slurmDir=${derivDir}/Slurm_out
 time=`date '+%Y_%m_%d-%H_%M_%S'`
-out_dir=${slurm_dir}/dti1_${time}
-mkdir -p $out_dir
+outDir=${slurmDir}/dti1_${time}
+mkdir -p $outDir
 
 # copy data, run job for e/subject
-cd $dset_dir
-for subj in sub*; do
+# cd $dsetDir
+# for subj in sub*; do
+subj=sub-4000
 
-	subj_dir=${deriv_dir}/${subj}/ses-S2
-	data_dir=${dset_dir}/${subj}/ses-S2/dwi
+	# set subj vars
+	subjDir=${derivDir}/vistasoft/${subj}/ses-S2
+	subjRaw=${subjDir}/raw
+	dwiDir=${dsetDir}/${subj}/ses-S2/dwi
+	t1Dir=${dsetDir}/${subj}/ses-S1/anat
+	mkdir -p $subjRaw
 
-	# copy data to derivatives
-	if [ ! -f ${subj_dir}/dwi.nii.gz ]; then
-		mkdir -p $subj_dir
-		cp ${data_dir}/${subj}_ses-S2_dwi.nii.gz ${subj_dir}/dwi.nii.gz
-		cp ${data_dir}/${subj}_ses-S2_dwi.bvec ${subj_dir}/dwi.bvec
-		cp ${data_dir}/${subj}_ses-S2_dwi.bval ${subj_dir}/dwi.bval
-		cp ${data_dir}/${subj}_ses-S2_dwi.json ${subj_dir}/dwi.json
+	# set up subj vistasoft with t1, dwi
+	if [ ! -f ${subjRaw}/dwi.nii.gz ]; then
+		cp ${t1Dir}/${subj}_ses-S1_T1w.nii.gz ${subjDir}/t1.nii.gz
+		for suff in bvec bval json nii.gz; do
+			cp ${dwiDir}/${subj}_ses-S2_dwi.$suff ${subjRaw}/dwi.$suff
+		done
 	fi
 
 	# submit job
-	if [ ! -f ${subj_dir}/dti96trilin/dt6.mat ]; then
+	if [ ! -f ${subjDir}/dti96trilin/dt6.mat ]; then
 		sbatch \
-		-o ${out_dir}/output_${subj}.txt \
-		-e ${out_dir}/error_${subj}.txt \
-		${code_dir}/dti_step1_dtiInit.sh $subj $code_dir
+		-o ${outDir}/output_${subj}.txt \
+		-e ${outDir}/error_${subj}.txt \
+		${codeDir}/dti_step1_dtiInit.sh $subj $codeDir
 		sleep 1
 	fi
-done
+# done
