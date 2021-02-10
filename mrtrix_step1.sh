@@ -42,7 +42,7 @@ numVol=`mrinfo -size dwi.mif | awk '{print $4}'`
 numVec=`awk '{print NF; exit}' dwi.bvec`
 numVal=`awk '{print NF; exit}' dwi.bval`
 if [ $numVol != $numVec ] || [ $numVol != $numVec ]; then
-	echo "issue"
+	echo "Issue with number vols/vecs/vals check" >&2
 	exit 1
 fi
 
@@ -65,9 +65,10 @@ if [ ! -f dwi_den.mif ]; then
 fi
 
 # # unwarp data, remove eddy currents
-# dwifslpreproc dwi_den.mif dwi_preproc.mif \
-# 	-nocleanup \
-# 	-pe_dir AP \
-# 	-rpe_pair -se_epi fmap_both.mif \
-# 	-eddy_options " --slm=linear --data_is_shelled"
-
+if [ ! -f dwi_preproc.mif ]; then
+	dwifslpreproc dwi_den.mif dwi_preproc.mif \
+		-nocleanup \
+		-pe_dir AP \
+		-rpe_pair -se_epi fmap_both.mif \
+		-eddy_options " --slm=none --data_is_shelled"
+fi
