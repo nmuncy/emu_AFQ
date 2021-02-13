@@ -22,7 +22,7 @@ fi
 cd $subjOut
 
 # convert to mrtrix format
-if [ ! -f ${subj}_dwi.mif ]; then
+if [ ! -f dwi.mif ]; then
 	mrconvert ${subjData}/dwi/${subj}_${sess}_run-1_dwi.nii.gz \
 		dwi.mif \
 		-fslgrad \
@@ -32,7 +32,7 @@ fi
 
 # get bvec/als
 for suff in bv{ec,al}; do
-	if [ ! -f ${subj}_dwi.$suff ]; then
+	if [ ! -f dwi.$suff ]; then
 		cp ${subjData}/dwi/${subj}_${sess}_run-1_dwi.$suff dwi.$suff
 	fi
 done
@@ -48,7 +48,7 @@ fi
 
 # get fmaps, make average
 for dir in AP PA; do
-	if [ ! -f ${subj}_${dir}_fmap.mif ]; then
+	if [ ! -f fmap_${dir}.mif ]; then
 		cp ${subjData}/fmap/${subj}_${sess}_acq-dwi_dir-${dir}_run-?_epi.nii.gz fmap_${dir}.nii.gz
 		mrconvert fmap_${dir}.nii.gz fmap_${dir}.mif
 	fi
@@ -68,7 +68,7 @@ fi
 if [ ! -f dwi_preproc.mif ]; then
 	dwifslpreproc dwi_den.mif dwi_preproc.mif \
 		-nocleanup \
-		-pe_dir AP \
+		-pe_dir PA \
 		-rpe_pair -se_epi fmap_both.mif \
 		-eddy_options " --slm=none --data_is_shelled"
 fi
