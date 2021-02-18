@@ -21,9 +21,9 @@ cp $refFile $parDir
 cp $refFile $workDir
 
 # BIDs format pre-processed dwi data
-# cd $derivDir
-# for subj in sub-*; do
-subj=sub-4001
+cd $derivDir
+for subj in sub-*; do
+    # subj=sub-4001
 
     sourceDir=${derivDir}/${subj}/${sess}/dwi
     outDir=${workDir}/${subj}/${sess}/dwi
@@ -34,7 +34,7 @@ subj=sub-4001
         cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.bvec ${outDir}/${subj}_${sess}_dwi.bvec
         cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.nii.gz ${outDir}/${subj}_${sess}_dwi.nii.gz
     fi
-# done
+done
 
 # submit python
 python ${codeDir}/afq_step1_setup.py $codeDir $parDir $workDir
