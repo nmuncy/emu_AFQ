@@ -11,11 +11,11 @@ def main():
     # receive args
     code_dir = str(sys.argv[1])
     bids_dir = str(sys.argv[2])
-    vista_dir = str(sys.argv[3])
+    deriv_dir = str(sys.argv[3])
 
     # append data_description with new field
-    json_file = os.path.join(vista_dir, "dataset_description.json")
-    new_field = {"PipelineDescription": {"Name": "vistasoft"}}
+    json_file = os.path.join(deriv_dir, "dataset_description.json")
+    new_field = {"PipelineDescription": {"Name": "dwi_preproc"}}
 
     with open(json_file) as jf:
         json_content = json.load(jf)
@@ -29,9 +29,8 @@ def main():
     # write config.toml
     toml_file = os.path.join(code_dir, "config.toml")
 
-    # "name": "pyAFQ config file",
     conf_dict = {
-        "files": {"dmriprep_folder": vista_dir},
+        "files": {"dmriprep_folder": deriv_dir},
         "BIDS": {"bids_path": bids_dir},
         "TRACTOGRAPHY": {"directions": "prob"},
     }

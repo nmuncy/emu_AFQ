@@ -2,30 +2,39 @@
 
 # set up
 codeDir=~/compute/emu_diff
-refFile=/home/data/madlab/McMakin_EMUR01/dset/dataset_description.json
+
+# vars for pre-processed data
+emuDir=/home/data/madlab/McMakin_EMUR01
+derivDir=${emuDir}/derivatives/dwi_preproc
+dsetDir=${emuDir}/dset
+refFile=${dsetDir}/dataset_description.json
+
+# vars for AFQ work
 parDir=/scratch/madlab/emu_diff
-derivDir=${parDir}/derivatives/vistasoft
+workDir=${parDir}/derivatives/dwi_preproc
 sess=ses-S2
+run=run-1
 
 # get jsons
+mkdir -p $workDir
 cp $refFile $parDir
-cp $refFile $derivDir
+cp $refFile $workDir
 
 # BIDs format pre-processed dwi data
-cd $derivDir
+# cd $derivDir
+# for subj in sub-*; do
+subj=sub-4001
 
-for subj in sub-*; do
-
-    sourceDir=${derivDir}/${subj}/${sess}
-    outDir=${sourceDir}/dwi
+    sourceDir=${derivDir}/${subj}/${sess}/dwi
+    outDir=${workDir}/${subj}/${sess}/dwi
 
     if [ ! -f ${outDir}/${subj}_${sess}_dwi.nii.gz ]; then
         mkdir -p $outDir
-        cp ${sourceDir}/dwi_aligned_trilin.bvecs ${outDir}/${subj}_${sess}_dwi.bvec
-        cp ${sourceDir}/dwi_aligned_trilin.bvals ${outDir}/${subj}_${sess}_dwi.bval
-        cp ${sourceDir}/dwi_aligned_trilin.nii.gz ${outDir}/${subj}_${sess}_dwi.nii.gz
+        cp ${dsetDir}/${subj}/${sess}/dwi/${subj}_${sess}_${run}_dwi.bval ${outDir}/${subj}_${sess}_dwi.bval
+        cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.bvec ${outDir}/${subj}_${sess}_dwi.bvec
+        cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.nii.gz ${outDir}/${subj}_${sess}_dwi.nii.gz
     fi
-done
+# done
 
 # submit python
-python ${codeDir}/dti_step2_setup.py $codeDir $parDir $derivDir
+python ${codeDir}/afq_step1_setup.py $codeDir $parDir $workDir
