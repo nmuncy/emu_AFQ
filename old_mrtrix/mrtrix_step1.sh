@@ -64,11 +64,18 @@ if [ ! -f dwi_den.mif ]; then
 	mrcalc dwi.mif dwi_den.mif -subtract tmp_residual.mif
 fi
 
-# # unwarp data, remove eddy currents
+# unwarp data, remove eddy currents
+#	takes about 6 hours
+date > time.txt
+
 if [ ! -f dwi_preproc.mif ]; then
 	dwifslpreproc dwi_den.mif dwi_preproc.mif \
 		-nocleanup \
 		-pe_dir PA \
 		-rpe_pair -se_epi fmap_both.mif \
-		-eddy_options " --slm=none --data_is_shelled"
+		-eddy_options " --slm=linear --data_is_shelled"
 fi
+
+date >> time.txt
+
+# dwibiascorrect ants dwi_preproc.mif dwi_unbiased.mif -bias bias.mif
