@@ -6,6 +6,8 @@ library("fitdistrplus")
 library("ggplot2")
 library("itsadug")
 library("mgcViz")
+# library("ez")
+library("dplyr")
 
 
 # Orienting vars
@@ -45,7 +47,7 @@ func_makeDF <- function(){
   # add group, pars6, pds, age
   #   add d-primes, sex
   df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- df_afq$Age <- NA
-  df_afq$NegDP12h <- df_afq$NegDP1wk <- df_afq$NeuDP12h <- df_afq$NeuDP1wk <- NA
+  df_afq$NegDP1wk <- df_afq$NeuDP1wk <- NA
   df_afq$Sex <- NA
 
   for(subj in subjList){
@@ -75,22 +77,47 @@ func_makeDF <- function(){
     h_sex <- substr(df_full[ind_full,]$sex, 1, 1)
     if(h_sex == "f"){h_sexF <- 0}else if(h_sex == "m"){h_sexF <- 1}
 
-    # determine d-primes
-    h_neg12 <- df_full[ind_full,]$dprime_neg_12H
-    h_neu12 <- df_full[ind_full,]$dprime_neu_12H
-    h_neg1wk <- df_full[ind_full,]$dprime_neg_1WK
-    h_neu1wk <- df_full[ind_full,]$dprime_neu_1WK
-
+    # calculate d-primes
+    neg_num_hit <- df_full[ind_full,]$negtarght_cnt_1WK
+    neg_num_miss <- df_full[ind_full,]$negtargms_cnt_1WK
+    neg_num_cr <- df_full[ind_full,]$neglurecr_cnt_1WK
+    neg_num_fa <- df_full[ind_full,]$neglurefa_cnt_1WK
+    
+    neu_num_hit <- df_full[ind_full,]$neutarght_cnt_1WK
+    neu_num_miss <- df_full[ind_full,]$neutargms_cnt_1WK
+    neu_num_cr <- df_full[ind_full,]$neulurecr_cnt_1WK
+    neu_num_fa <- df_full[ind_full,]$neulurefa_cnt_1WK
+    
+    for(check in c("neg_num_hit", 
+     "neg_num_miss", 
+     "neg_num_cr", 
+     "neg_num_fa", 
+     "neu_num_hit", 
+     "neu_num_miss", 
+     "neu_num_cr", 
+     "neu_num_fa")){
+      check_val = get(check)
+      if(check_val == 0){
+        assign(check, 0.1)
+      }
+    }
+    
+    dp_neg <- qnorm(neg_num_hit/(neg_num_hit + neg_num_miss)) - 
+      qnorm(neg_num_fa/(neg_num_fa + neg_num_cr))
+    
+    dp_neu <- qnorm(neu_num_hit/(neu_num_hit + neu_num_miss)) - 
+      qnorm(neu_num_fa/(neu_num_fa + neu_num_cr))
+    
+    
     # fill
     df_afq[ind_afq,]$Group <- h_group
     df_afq[ind_afq,]$Pars6 <- h_anx
     df_afq[ind_afq,]$PDS <- h_pds
     df_afq[ind_afq,]$Age <- h_age
     df_afq[ind_afq,]$Sex <- h_sexF
-    df_afq[ind_afq,]$NegDP12h <- h_neg12
-    df_afq[ind_afq,]$NeuDP12h <- h_neu12
-    df_afq[ind_afq,]$NegDP1wk <- h_neg1wk
-    df_afq[ind_afq,]$NeuDP1wk <- h_neu1wk
+    
+    df_afq[ind_afq,]$NegDP1wk <- round(dp_neg, 2)
+    df_afq[ind_afq,]$NeuDP1wk <- round(dp_neu, 2)
   }
 
   # add GroupSex
@@ -122,7 +149,6 @@ df_afq <- func_makeDF()
 
 
 
-
 ### --- Step 2: Model tract, no covariates
 #
 # Plot data, determine distribution,
@@ -137,7 +163,7 @@ df_afq$Sex <- factor(df_afq$Sex)
 df_afq$GroupSex <- factor(df_afq$GroupSex)
 
 # Tract
-tract <- "UNC_L"
+tract <- "UNC_R"
 df_tract <- df_afq[which(df_afq$tractID == tract), ]
 df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
@@ -238,10 +264,8 @@ ggplot(data = df_pred) +
 #
 # Check for group differences in spline.
 
-# par(mfrow=c(2,3))
-# par(mar=c(5, 4, 4, 4))
+par(mfrow=c(1,3))
 
-# Male vs female on diff groups
 p01 <- plot_diff(fit_cov_pds,
     view="nodeID",
     comp=list(Group=c("0", "1")),
@@ -257,23 +281,57 @@ p12 <- plot_diff(fit_cov_pds,
     comp=list(Group=c("1", "2")),
     rm.ranef = T)
 
-# plot_diff2(
-#   fit_cov_pds,
-#   view=c("nodeID", "PDS"),
-#   comp=list(Group=c(0, 1)),
-#   rm.ranef = T,
-#   zlim=c(-0.12, 0.02),
-#   dec=2,
-#   se=0,
-#   color="topo",
-#   show.diff = T)
-
-
-# par(mfrow=c(1,1))
-# par(mar=c(5.1, 4.1, 4.1, 2.1))
+par(mfrow=c(1,1))
 
 # get location of maximum difference
 max_node_01 <- as.numeric(which(abs(p01$est) == max(abs(p01$est)))) - 1
 max_node_02 <- as.numeric(which(abs(p02$est) == max(abs(p02$est)))) - 1
 max_node_12 <- as.numeric(which(abs(p12$est) == max(abs(p12$est)))) - 1
+
+
+# regress node FA value on behavior
+df_tract$Fit <- df_pred$fit
+
+df_reg <- as.data.frame(df_tract[which(
+  df_tract$nodeID == max_node_01 |
+  df_tract$nodeID == max_node_02 |
+  df_tract$nodeID == max_node_12
+),])
+df_reduce <- as.data.frame(df_reg[,-c(1:2, 5, 7:10, 14:16)])
+df_reduce$nodeID <- factor(df_reduce$nodeID)
+
+ind_pos01 <- which(df_tract$nodeID == max_node_01 & 
+   (df_tract$Group == 0 | df_tract$Group == 1))
+df_pos01 <- as.data.frame(df_tract[ind_pos01,])
+
+multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos01)
+summary(multi_reg)
+
+ggplot(df_pos01, aes(x=dti_fa, y=NegDP1wk)) +
+  geom_point() +
+  stat_smooth(method = lm)
+lm_01_neg <- lm(NegDP1wk ~ dti_fa, data=df_pos01)
+summary(lm_01_neg)
+
+ggplot(df_pos01, aes(x=dti_fa, y=NeuDP1wk)) +
+  geom_point() +
+  stat_smooth(method = lm)
+lm_01_neu <- lm(NeuDP1wk ~ dti_fa, data=df_pos01)
+summary(lm_01_neu)
+
+
+ind_pos02 <- which(df_tract$nodeID == max_node_02 & 
+   (df_tract$Group == 0 | df_tract$Group == 2))
+df_pos02 <- as.data.frame(df_tract[ind_pos02,])
+
+multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos02)
+summary(multi_reg)
+
+
+ind_pos12 <- which(df_tract$nodeID == max_node_12 & 
+   (df_tract$Group == 1 | df_tract$Group == 2))
+df_pos12 <- as.data.frame(df_tract[ind_pos12,])
+
+multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos12)
+summary(multi_reg)
 
