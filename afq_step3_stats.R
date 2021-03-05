@@ -10,16 +10,22 @@ library("mgcViz")
 
 # Orienting vars
 dataDir <- "/Users/nmuncy/Projects/emu_diff/analyses/"
+privateDir <- "/Users/nmuncy/Projects/emu_private/"
 
 
 ### --- Step 1: Make dataset
 #
-# Add PDS, PARS scores
+# Add PDS, PARS, d-prime scores
+#   add sex, age
 #
 # Convert PARS to factors
 #   Low: <= 3
 #   Med: >3 & <=12
 #   Hi: >12
+#
+# Sex: 0 = female, 1 = male
+#
+# GroupSex: 0-2 = F-LMH, 3-5 = M-LMH
 #
 # Writes analyses/Master_dataframe.csv
 
@@ -28,20 +34,19 @@ func_makeDF <- function(){
   # Get data
   df_afq <- read.delim(paste0(dataDir, "tract_profiles.csv"), sep = ",", header = T)
   colnames(df_afq) <- c("Counter", colnames(df_afq)[-1])
-  df_full <- read.delim(paste0(dataDir, "emuR01_full_latest.csv"), sep = ",", header=T)
-  df_pds <- read.delim(paste0(dataDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
-  
-  # # Round FA/MDs
-  # df_afq$dti_fa <- round(df_afq$dti_fa, 3)
-  # df_afq$dti_md <- round(df_afq$dti_md, 3)
+  df_full <- read.delim(paste0(privateDir, "emuR01_full_latest.csv"), sep = ",", header=T)
+  df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
   
   # make lists
   subjList <- unique(df_afq$subjectID)
   tractList <- unique(df_afq$tractID)
   nodeList <- unique(df_afq$nodeID)
   
-  # add group, pars6, pds
-  df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- NA
+  # add group, pars6, pds, age
+  #   add d-primes, sex
+  df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- df_afq$Age <- NA
+  df_afq$NegDP12h <- df_afq$NegDP1wk <- df_afq$NeuDP12h <- df_afq$NeuDP1wk <- NA
+  df_afq$Sex <- NA
   
   for(subj in subjList){
     
@@ -65,16 +70,49 @@ func_makeDF <- function(){
     # determine pds
     h_pds <- df_pds[ind_pds,]$pds_shirtcliff
     
+    # determine age, sex
+    h_age <- df_full[ind_full,]$pinf_age
+    h_sex <- substr(df_full[ind_full,]$sex, 1, 1)
+    if(h_sex == "f"){h_sexF <- 0}else if(h_sex == "m"){h_sexF <- 1}
+    
+    # determine d-primes
+    h_neg12 <- df_full[ind_full,]$dprime_neg_12H
+    h_neu12 <- df_full[ind_full,]$dprime_neu_12H
+    h_neg1wk <- df_full[ind_full,]$dprime_neg_1WK
+    h_neu1wk <- df_full[ind_full,]$dprime_neu_1WK
+    
     # fill
     df_afq[ind_afq,]$Group <- h_group
     df_afq[ind_afq,]$Pars6 <- h_anx
     df_afq[ind_afq,]$PDS <- h_pds
+    df_afq[ind_afq,]$Age <- h_age
+    df_afq[ind_afq,]$Sex <- h_sexF
+    df_afq[ind_afq,]$NegDP12h <- h_neg12
+    df_afq[ind_afq,]$NeuDP12h <- h_neu12
+    df_afq[ind_afq,]$NegDP1wk <- h_neg1wk
+    df_afq[ind_afq,]$NeuDP1wk <- h_neu1wk
   }
   
-  # convert Group to factor for mgcv
-  df_afq$Group <- factor(df_afq$Group)
-  # df_afq$PDS <- factor(df_afq$PDS)
+  # add GroupSex
+  GroupSex <- df_afq$Sex
   
+  ind0 <- which(df_afq$Group==0 & df_afq$Sex==0)
+  ind1 <- which(df_afq$Group==1 & df_afq$Sex==0)
+  ind2 <- which(df_afq$Group==2 & df_afq$Sex==0)
+  ind3 <- which(df_afq$Group==0 & df_afq$Sex==1)
+  ind4 <- which(df_afq$Group==1 & df_afq$Sex==1)
+  ind5 <- which(df_afq$Group==2 & df_afq$Sex==1)
+  
+  GroupSex[ind0] <- 0
+  GroupSex[ind1] <- 1
+  GroupSex[ind2] <- 2
+  GroupSex[ind3] <- 3
+  GroupSex[ind4] <- 4
+  GroupSex[ind5] <- 5
+  
+  df_afq$GroupSex <- as.factor(GroupSex)
+  
+
   # write csv
   outFile <- paste0(dataDir, "Master_dataframe.csv")
   write.csv(df_afq, file=outFile, quote=F, row.names = F)
@@ -84,23 +122,21 @@ df_afq <- func_makeDF()
 
 
 
-### --- Step2: Tracts of Interest
-#
-# Determine distribution of data
-#
-# Find best GAM fit, determine K
-#
-# Use PARS as categorical, PDS as continuous
-#
-# Plot differences
 
+### --- Step 2: Model tract, no covariates
+#
+# Plot data, determine distribution,
+#   compare model families.
+#
+# Plot best model
 
 # Get data
 df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
 df_afq$Group <- factor(df_afq$Group)
+df_afq$Sex <- factor(df_afq$Sex)
+df_afq$GroupSex <- factor(df_afq$GroupSex)
 
-
-### --- L. UNC
+# Tract
 tract <- "UNC_L"
 df_tract <- df_afq[which(df_afq$tractID == tract), ]
 df_tract$dti_fa <- round(df_tract$dti_fa, 3)
@@ -113,8 +149,8 @@ ggplot(data = df_tract) +
   geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
 
-# check shape
-descdist(df_tract$dti_fa, discrete=F)
+# determine distribution
+descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
 
 fit.beta <- fitdist(df_tract$dti_fa, "beta")
 plot(fit.beta)
@@ -125,183 +161,165 @@ plot(fit.gamma)
 fit.gamma$aic
 
 
-# compare different gam models
-fit_gamma <- gam(dti_fa ~ Group + s(nodeID, by = Group, k=35), data = df_tract, family = Gamma, method = "REML")
-# gam.check(fit_gamma, rep = 500)
-fit_beta <- gam(dti_fa ~ Group + s(nodeID, by = Group, k=30), data = df_tract, family = betar(link = "logit"), method = "REML")
-# gam.check(fit_beta, rep = 500)
-AIC(fit_gamma, fit_beta)
+#  determine k, compare families
+#     2 groups, pg 360 Simon Woods
+fit_gamma <- bam(dti_fa ~ Group + 
+   Sex +
+   s(nodeID, by=GroupSex, k=40) +
+   s(subjectID, bs="re"),
+   data = df_tract,
+   family = Gamma(link = "logit"),
+   method = "REML")
+
+gam.check(fit_gamma, rep = 500)
+
+fit_beta <- bam(dti_fa ~ Group + 
+   Sex +
+   s(nodeID, by=GroupSex, k=35) +
+   s(subjectID, bs="re"),
+   data = df_tract,
+   family = betar(link = "logit"),
+   method = "REML")
+
+gam.check(fit_beta, rep = 500)
+
+infoMessages('on')
+compareML(fit_gamma, fit_beta)  # fit_gamma recommended
+
+# get stats
+summary(fit_gamma)  # R-sq = 0.8
+
+# # plot better model
+plot_smooths(model=fit_gamma, 
+   series=nodeID, 
+   comparison=Group,
+   exclude_terms = "Sex") +
+    theme(legend.position = "top")
 
 
-# plot better model
-plot_smooths(model=fit_beta, series=nodeID, comparison=Group) + theme(legend.position = "top")
-summary(g_beta)
+# plot_smooths(
+#     model=fit_gamma,
+#     series=nodeID,
+#     comparison=Group,
+#     facet_terms = Sex) +
+#     theme(legend.position = "right")
 
 
-# model with covariates
-fit_cov <- gam(dti_fa ~ Group + PDS + s(nodeID, by = Group, k=30), data = df_tract, family = betar(link = "logit"), method = "REML")
-# gam.check(fit_cov, rep = 500)
-summary(fit_cov)
 
 
-# # plot all
-# plot.gam(fit_cov, pages=1, ylab="Parameter Est.", all.terms=T)
 
-# # plot single
-# lunc_single <- getViz(fit_cov)
+### --- Step 3: Model tract, covariates
+#
+# Determine which covariates give best model fit.
+#   Using PDS and Age
+#
+# Plot best model
+
+# s(nodeID, by=GroupSex, k=40) +
+
+fit_cov_pds <- bam(dti_fa ~ Group + 
+    Sex +
+    s(nodeID, by=Group, k=40) +
+    s(PDS, by=Sex) +
+    s(subjectID, bs="re"),
+    data = df_tract,
+    family = Gamma(link = "logit"),
+    method = "REML")
+
+gam.check(fit_cov_pds, rep = 500)
+
+
+# Test cov model against gamma
+# infoMessages('on')
+compareML(fit_gamma, fit_cov_pds) #PDS wins
+summary(fit_cov_pds) # R-sq = 0.85
+
+
+# plot all
+plot.gam(fit_cov_pds, pages=1, ylab="Parameter Est.", all.terms=T)
+plot.gam(fit_cov_pds, pages=1, ylab="Parameter Est.")
+plot.gam(fit_cov_pds, select=1)
+plot.gam(fit_cov_pds, select=2)
+plot.gam(fit_cov_pds, select=3)
+
+
+# plot_smooths(
+#     model=fit_cov_pds,
+#     series=nodeID,
+#     comparison=Group,
+#     exclude_terms = "Sex") +
+#     theme(legend.position = "right")
+
+vis.gam(fit_cov_pds, view=c("nodeID", "Group"), plot.type = "contour", color = "topo")
+# vis.gam(fit_cov_pds, view=c("nodeID", "GroupSex"), plot.type = "contour", color = "topo")
+
+
+# plot single
+# lunc_single <- getViz(fit_cov_pds)
 # p1 <- plot(sm(lunc_single, 1))
-# p1 + l_fitLine(colour = "red") + 
+# p1 + l_fitLine(colour = "red") +
 #   l_rug(mapping = aes(x=x, y=y), alpha = 0.8) +
-#   l_ciLine(mul = 5, colour = "blue", linetype = 2) + 
-#   l_points(shape = 19, size = 1, alpha = 0.1) + 
+#   l_ciLine(mul = 5, colour = "blue", linetype = 2) +
+#   l_points(shape = 19, size = 1, alpha = 0.1) +
 #   theme_classic()
 
-# get pred controlling for PDS
-df_pred <- predict_gam(fit_cov, exclude_terms = c("PDS"), values=list(PDS = NULL))
-df_pred %>% 
-  ggplot(aes(nodeID, fit)) +
-  geom_smooth_ci(Group)
 
-# # plot for e/cov
-# plot_smooths(
-#   model=fit_cov, 
-#   series=nodeID, 
-#   comparison=Group,
-#   facet_terms = PDS
-#   ) + theme(legend.position = "top")
+# get pred controlling for PDS, sex, GroupSex
+# df_pred <- predict_gam(
+#   fit_cov_pds,
+#   exclude_terms = c("PDS", "Sex"),
+#   values=list(PDS = NULL, Sex = NULL))
 
-# differences
-# plot_difference(fit_beta, series=nodeID, difference = list(Group = c(0, 1, 2)))
-# plot_difference(fit_beta, series=nodeID, difference = list(Group = c(0, 1)))
-# plot_difference(fit_beta, series=nodeID, difference = list(Group = c(1, 2)))
-# plot_difference(fit_beta, series=nodeID, difference = list(Group = c(0, 2)))
-
-# test for differences between models
-# anova(fit_beta, fit_cov, test="F")
-
-infoMessages('on')
-compareML(fit_beta, fit_cov)
-
-par(mfrow=c(2,3))
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(0, 1)), rm.ranef = T)
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(0, 2)), rm.ranef = T)
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(1, 2)), rm.ranef = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(0, 1)), 
-  rm.ranef = T, 
-  zlim=c(-0.15, 0.06), 
-  se=0, 
-  show.diff = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(0, 2)), 
-  rm.ranef = T, 
-  zlim=c(-0.15, 0.06), 
-  se=0, 
-  show.diff = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(1, 2)), 
-  rm.ranef = T, 
-  zlim=c(-0.15, 0.06), 
-  se=0, 
-  show.diff = T)
-
-par(mfrow=c(1,1))
+# df_pred %>%
+#   ggplot(aes(nodeID, fit)) +
+#   geom_smooth_ci(Group) +
+#   ggtitle("L. Uncinate Model Fit") +
+#   ylab("GAM Est.")
 
 
 
 
-### --- R. UNC
-tract <- "UNC_R"
-df_tract <- df_afq[which(df_afq$tractID == tract), ]
-df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
-# plot mean data
-ggplot(data = df_tract) +
-  geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+### --- Step 4: Test for differences
+#
+# Check for group differences in spline.
 
-ggplot(data = df_tract) +
-  geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-  geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+# par(mfrow=c(2,3))
+# par(mar=c(5, 4, 4, 4))
 
-# check shape
-descdist(df_tract$dti_fa, discrete=F)
+# Male vs female on diff groups
+p01 <- plot_diff(fit_cov_pds, 
+    view="nodeID", 
+    comp=list(Group=c("0", "1")), 
+    rm.ranef = T)
 
-fit.beta <- fitdist(df_tract$dti_fa, "beta")
-plot(fit.beta)
-fit.beta$aic
+p02 <- plot_diff(fit_cov_pds, 
+    view="nodeID", 
+    comp=list(Group=c("0", "2")), 
+    rm.ranef = T)
 
-fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
-plot(fit.gamma)
-fit.gamma$aic
+p12 <- plot_diff(fit_cov_pds, 
+    view="nodeID", 
+    comp=list(Group=c("1", "2")), 
+    rm.ranef = T)
 
-# compare different gam models
-fit_gamma <- gam(dti_fa ~ Group + s(nodeID, by = Group, k=35), data = df_tract, family = Gamma, method = "REML")
-# gam.check(fit_gamma, rep = 500)
-fit_beta <- gam(dti_fa ~ Group + s(nodeID, by = Group, k=30), data = df_tract, family = betar(link = "logit"), method = "REML")
-# gam.check(fit_beta, rep = 500)
-AIC(fit_gamma, fit_beta)
+# plot_diff2(
+#   fit_cov_pds,
+#   view=c("nodeID", "PDS"),
+#   comp=list(Group=c(0, 1)), 
+#   rm.ranef = T,
+#   zlim=c(-0.12, 0.02),
+#   dec=2,
+#   se=0,
+#   color="topo",
+#   show.diff = T)
 
-# plot better model
-plot_smooths(model=fit_beta, series=nodeID, comparison=Group) + theme(legend.position = "top")
-summary(g_beta)
 
-# model with covariates
-fit_cov <- gam(dti_fa ~ Group + PDS + s(nodeID, by = Group, k=30), data = df_tract, family = betar(link = "logit"), method = "REML")
-# gam.check(fit_cov, rep = 500)
-summary(fit_cov)
+# par(mfrow=c(1,1))
+# par(mar=c(5.1, 4.1, 4.1, 2.1))
 
-# get pred controlling for PDS
-df_pred <- predict_gam(fit_cov, exclude_terms = c("PDS"), values=list(PDS = NULL))
-df_pred %>% 
-  ggplot(aes(nodeID, fit)) +
-  geom_smooth_ci(Group) + 
-  ggtitle(paste0("Tract: ", tract))
-
-# differences
-infoMessages('on')
-compareML(fit_beta, fit_cov)
-
-par(mfrow=c(2,3))
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(0, 1)), rm.ranef = T)
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(0, 2)), rm.ranef = T)
-plot_diff(fit_cov, view="nodeID", comp=list(Group=c(1, 2)), rm.ranef = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(0, 1)), 
-  rm.ranef = T, 
-  zlim=c(-0.1, 0), 
-  se=0, 
-  show.diff = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(0, 2)), 
-  rm.ranef = T, 
-  zlim=c(-0.15, 0.06), 
-  se=0, 
-  show.diff = T)
-
-plot_diff2(
-  fit_cov, 
-  view=c("nodeID", "PDS"), 
-  comp=list(Group=c(1, 2)), 
-  rm.ranef = T, 
-  zlim=c(-0.06, 0.06), 
-  se=0, 
-  show.diff = T)
-
-par(mfrow=c(1,1))
-
+# get location of maximum difference
+max_node_01 <- as.numeric(which(abs(p01$est) == max(abs(p01$est)))) - 1
+max_node_02 <- as.numeric(which(abs(p02$est) == max(abs(p02$est)))) - 1
+max_node_12 <- as.numeric(which(abs(p12$est) == max(abs(p12$est)))) - 1
 
