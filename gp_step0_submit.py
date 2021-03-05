@@ -15,9 +15,9 @@ import time
 import json
 
 # set up
-code_dir = "/home/nmuncy/compute/emu_diff"
+code_dir = "/home/nmuncy/compute/emu_AFQ"
 tar_dir = "/home/data/madlab/McMakin_EMUR01/sourcedata"
-work_dir = "/scratch/madlab/emu_diff"
+work_dir = "/scratch/madlab/emu_AFQ"
 scan_dict = {
     "ses-S1": {"func": "fMRI_Emotion_PS", "anat": "T1w", "fmap": "fMRI_Dist"},
     "ses-S2": {"func": "fMRI_Emotion_PS", "fmap": "fMRI_Dist", "dwi": "dMRI"},

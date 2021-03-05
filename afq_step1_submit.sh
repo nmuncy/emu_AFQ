@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # set up
-codeDir=~/compute/emu_diff
+codeDir=~/compute/emu_AFQ
 
 # vars for pre-processed data
 emuDir=/home/data/madlab/McMakin_EMUR01
@@ -10,7 +10,7 @@ dsetDir=${emuDir}/dset
 refFile=${dsetDir}/dataset_description.json
 
 # vars for AFQ work
-parDir=/scratch/madlab/emu_diff
+parDir=/scratch/madlab/emu_AFQ
 workDir=${parDir}/derivatives/dwi_preproc
 sess=ses-S2
 run=run-1
