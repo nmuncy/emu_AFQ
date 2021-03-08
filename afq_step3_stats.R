@@ -410,37 +410,37 @@ p12 <- plot_diff(fit_cov_pds,
 
 par(mfrow=c(1,1))
 
-# get location of maximum difference
-max_node_01 <- as.numeric(which(abs(p01$est) == max(abs(p01$est)))) - 1
-max_node_02 <- as.numeric(which(abs(p02$est) == max(abs(p02$est)))) - 1
-max_node_12 <- as.numeric(which(abs(p12$est) == max(abs(p12$est)))) - 1
-
 
 
 ### --- Step 6: Regress
 #
 # regress node FA value on behavior
 
-df_max <- as.data.frame(df_tract[which(
-  df_tract$nodeID == max_node_01 |
-  df_tract$nodeID == max_node_02 |
-  df_tract$nodeID == max_node_12
-),])
-df_reduce <- as.data.frame(df_max[,-c(1:2, 5, 7:10, 14:16)])
-df_reduce$nodeID <- factor(df_reduce$nodeID)
+# find biggest difference
+df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
+colnames(df_est) <- colnames(p01)
+df_est[,1:5] <- rbind(p01, p02, p12)
 
-ind_pos02 <- which(df_reduce$nodeID == max_node_02 &
-   (df_reduce$Group == 0 | df_reduce$Group == 2))
-df_pos02 <- as.data.frame(df_reduce[ind_pos02,])
+ind_max <- which(abs(df_est$est) == max(abs(df_est$est)))
+node_max <- df_est[ind_max,]$nodeID
+h_groups <- df_est[ind_max,]$comp
+groups <- stringr::str_extract_all(h_groups, "\\d+")
+gA <- as.numeric(groups[[1]][1])
+gB <- as.numeric(groups[[1]][2])
+
+# make df
+df_max <- as.data.frame(df_tract[which(
+  df_tract$nodeID == node_max &
+  (df_tract$Group == gA | df_tract$Group == gB)
+),])
 
 # negLGI x group
-ggplot(df_pos02, aes(x=dti_fa, y=NegLGI)) +
+ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
   geom_point() +
   geom_smooth(method = "lm") +
   facet_wrap(~ Group)
 
-# xyplot(NegLGI ~ dti_fa, groups=Group, data=df_pos02, type='l')
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_pos02)
+fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
