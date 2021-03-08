@@ -6,8 +6,9 @@ library("fitdistrplus")
 library("ggplot2")
 library("itsadug")
 library("mgcViz")
-# library("ez")
+library("ez")
 library("dplyr")
+library("lme4")
 
 
 # Orienting vars
@@ -27,8 +28,6 @@ privateDir <- "/Users/nmuncy/Projects/emu_private/"
 #
 # Sex: 0 = female, 1 = male
 #
-# GroupSex: 0-2 = F-LMH, 3-5 = M-LMH
-#
 # Writes analyses/Master_dataframe.csv
 
 func_makeDF <- function(){
@@ -47,7 +46,8 @@ func_makeDF <- function(){
   # add group, pars6, pds, age
   #   add d-primes, sex
   df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- df_afq$Age <- NA
-  df_afq$NegDP1wk <- df_afq$NeuDP1wk <- NA
+  # df_afq$NegDP1wk <- df_afq$NeuDP1wk <- NA
+  df_afq$NegLDI <- df_afq$NeuLDI <- df_afq$NegLGI <- df_afq$NeuLGI <- NA
   df_afq$Sex <- NA
 
   for(subj in subjList){
@@ -77,37 +77,69 @@ func_makeDF <- function(){
     h_sex <- substr(df_full[ind_full,]$sex, 1, 1)
     if(h_sex == "f"){h_sexF <- 0}else if(h_sex == "m"){h_sexF <- 1}
 
-    # calculate d-primes
+    # Get Beh counts
     neg_num_hit <- df_full[ind_full,]$negtarght_cnt_1WK
     neg_num_miss <- df_full[ind_full,]$negtargms_cnt_1WK
-    neg_num_cr <- df_full[ind_full,]$neglurecr_cnt_1WK
-    neg_num_fa <- df_full[ind_full,]$neglurefa_cnt_1WK
-    
+    neg_num_Lcr <- df_full[ind_full,]$neglurecr_cnt_1WK
+    neg_num_Lfa <- df_full[ind_full,]$neglurefa_cnt_1WK
+    neg_num_Fcr <- df_full[ind_full,]$negfoilcr_cnt_1WK
+    neg_num_Ffa <- df_full[ind_full,]$negfoilfa_cnt_1WK
+
     neu_num_hit <- df_full[ind_full,]$neutarght_cnt_1WK
     neu_num_miss <- df_full[ind_full,]$neutargms_cnt_1WK
-    neu_num_cr <- df_full[ind_full,]$neulurecr_cnt_1WK
-    neu_num_fa <- df_full[ind_full,]$neulurefa_cnt_1WK
+    neu_num_Lcr <- df_full[ind_full,]$neulurecr_cnt_1WK
+    neu_num_Lfa <- df_full[ind_full,]$neulurefa_cnt_1WK
+    neu_num_Fcr <- df_full[ind_full,]$neufoilcr_cnt_1WK
+    neu_num_Ffa <- df_full[ind_full,]$neufoilfa_cnt_1WK
     
-    for(check in c("neg_num_hit", 
-     "neg_num_miss", 
-     "neg_num_cr", 
-     "neg_num_fa", 
-     "neu_num_hit", 
-     "neu_num_miss", 
-     "neu_num_cr", 
-     "neu_num_fa")){
+    # adjust 0 counts
+    for(check in c("neg_num_hit",
+     "neg_num_miss",
+     "neg_num_Lcr",
+     "neg_num_Lfa",
+     "neg_num_Fcr",
+     "neg_num_Ffa",
+     "neu_num_hit",
+     "neu_num_miss",
+     "neu_num_Lcr",
+     "neu_num_Lfa",
+     "neu_num_Fcr",
+     "neu_num_Ffa")){
       check_val = get(check)
       if(check_val == 0){
         assign(check, 0.1)
       }
     }
+
+    # Calculate Neg, Neu d'
+    # dp_neg <- qnorm(neg_num_hit/(neg_num_hit + neg_num_miss)) - 
+    #   qnorm(neg_num_Lfa/(neg_num_Lfa + neg_num_Lcr))
+    # 
+    # dp_neu <- qnorm(neu_num_hit/(neu_num_hit + neu_num_miss)) - 
+    #   qnorm(neu_num_Lfa/(neu_num_Lfa + neu_num_Lcr))
     
-    dp_neg <- qnorm(neg_num_hit/(neg_num_hit + neg_num_miss)) - 
-      qnorm(neg_num_fa/(neg_num_fa + neg_num_cr))
+    # Calculate Neg, Neu LDI
+    #   LDI = p(N|L) - p(N|T)
+    #   LGI = p(O|L) - p(O|F)
+    neg_LDI <- round(
+      (neg_num_Lcr / (neg_num_Lcr + neg_num_Lfa)) - 
+      (neg_num_miss / (neg_num_miss + neg_num_hit)), 
+      2)
+
+    neu_LDI <- round(
+      (neu_num_Lcr / (neu_num_Lcr + neu_num_Lfa)) - 
+      (neu_num_miss / (neu_num_miss + neu_num_hit)), 
+      2)
     
-    dp_neu <- qnorm(neu_num_hit/(neu_num_hit + neu_num_miss)) - 
-      qnorm(neu_num_fa/(neu_num_fa + neu_num_cr))
+    neg_LGI <- round(
+      (neg_num_Lfa / (neg_num_Lcr + neg_num_Lfa)) - 
+      (neg_num_Ffa / (neg_num_Ffa + neg_num_Fcr)), 
+      2)
     
+    neu_LGI <- round(
+      (neu_num_Lfa / (neu_num_Lcr + neu_num_Lfa)) - 
+      (neu_num_Ffa / (neu_num_Ffa + neu_num_Fcr)), 
+      2)
     
     # fill
     df_afq[ind_afq,]$Group <- h_group
@@ -116,29 +148,13 @@ func_makeDF <- function(){
     df_afq[ind_afq,]$Age <- h_age
     df_afq[ind_afq,]$Sex <- h_sexF
     
-    df_afq[ind_afq,]$NegDP1wk <- round(dp_neg, 2)
-    df_afq[ind_afq,]$NeuDP1wk <- round(dp_neu, 2)
+    # df_afq[ind_afq,]$NegDP1wk <- round(dp_neg, 2)
+    # df_afq[ind_afq,]$NeuDP1wk <- round(dp_neu, 2)
+    df_afq[ind_afq,]$NegLDI <- neg_LDI
+    df_afq[ind_afq,]$NeuLDI <- neu_LDI
+    df_afq[ind_afq,]$NegLGI <- neg_LGI
+    df_afq[ind_afq,]$NeuLGI <- neu_LGI
   }
-
-  # add GroupSex
-  GroupSex <- df_afq$Sex
-
-  ind0 <- which(df_afq$Group==0 & df_afq$Sex==0)
-  ind1 <- which(df_afq$Group==1 & df_afq$Sex==0)
-  ind2 <- which(df_afq$Group==2 & df_afq$Sex==0)
-  ind3 <- which(df_afq$Group==0 & df_afq$Sex==1)
-  ind4 <- which(df_afq$Group==1 & df_afq$Sex==1)
-  ind5 <- which(df_afq$Group==2 & df_afq$Sex==1)
-
-  GroupSex[ind0] <- 0
-  GroupSex[ind1] <- 1
-  GroupSex[ind2] <- 2
-  GroupSex[ind3] <- 3
-  GroupSex[ind4] <- 4
-  GroupSex[ind5] <- 5
-
-  df_afq$GroupSex <- as.factor(GroupSex)
-
 
   # write csv
   outFile <- paste0(dataDir, "Master_dataframe.csv")
@@ -149,7 +165,110 @@ df_afq <- func_makeDF()
 
 
 
-### --- Step 2: Model tract, no covariates
+
+### --- Step 2: Check Memory behavior
+#
+# Run ANOVA for LGI, LDI
+#
+# Writes to analyses/Stats_AN_L?I.txt
+func_memStats <- function(){
+  
+  # get data, make lists
+  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
+  df_afq$Group <- factor(df_afq$Group)
+  df_afq$Sex <- factor(df_afq$Sex)
+  
+  subjList <- unique(df_afq$subjectID)
+  tractList <- unique(df_afq$tractID)
+  nodeList <- unique(df_afq$nodeID)
+  
+  # set up LDI df
+  df_LDI <-  as.data.frame(matrix(NA,nrow=2*length(subjList), ncol=4))
+  colnames(df_LDI) <- c("Subj", "Group", "Meas", "Value")
+  
+  df_LDI$Subj <- rep(subjList, 2)
+  df_LDI$Meas <- c(
+    rep("NegLDI", length(subjList)), 
+    rep("NeuLDI", length(subjList))
+  )
+  
+  df_LDI$Group <- rep(
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$Group, 
+    2)
+  
+  df_LDI$Value <- c(
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$NegLDI,
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$NeuLDI
+  )
+  
+  # plot
+  boxplot(Value ~ Group*Meas, data=df_LDI)
+  hist(df_LDI[which(df_LDI$Meas == "NegLDI"),]$Value)
+  hist(df_LDI[which(df_LDI$Meas == "NeuLDI"),]$Value)
+  
+  # stats
+  stats_LDI <- ezANOVA(df_LDI,
+                       dv = Value,
+                       wid = Subj,
+                       between = Group,
+                       within = Meas,
+                       type = "III"
+  )
+  
+  # write
+  capture.output(stats_LDI, file = paste0(dataDir, "Stats_AN_LDI.txt"))
+  
+  
+  # repeat for LGI
+  df_LGI <-  as.data.frame(matrix(NA,nrow=2*length(subjList), ncol=4))
+  colnames(df_LGI) <- c("Subj", "Group", "Meas", "Value")
+  
+  df_LGI$Subj <- rep(subjList, 2)
+  df_LGI$Meas <- c(
+    rep("NegLGI", length(subjList)), 
+    rep("NeuLGI", length(subjList))
+  )
+  
+  df_LGI$Group <- rep(
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$Group, 
+    2)
+  
+  df_LGI$Value <- c(
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$NegLGI,
+    df_afq[which(
+      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
+    ),]$NeuLGI
+  )
+  
+  boxplot(Value ~ Group*Meas, data=df_LGI)
+  hist(df_LGI[which(df_LGI$Meas == "NegLGI"),]$Value)
+  hist(df_LGI[which(df_LGI$Meas == "NeuLGI"),]$Value)
+  
+  stats_LGI <- ezANOVA(df_LGI,
+                       dv = Value,
+                       wid = Subj,
+                       between = Group,
+                       within = Meas,
+                       type = "III"
+  )
+  
+  capture.output(stats_LGI, file = paste0(dataDir, "Stats_AN_LGI.txt"))
+}
+func_memStats()
+
+
+
+### --- Step 3: Model tract, no covariates
 #
 # Plot data, determine distribution,
 #   compare model families.
@@ -160,10 +279,9 @@ df_afq <- func_makeDF()
 df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
 df_afq$Group <- factor(df_afq$Group)
 df_afq$Sex <- factor(df_afq$Sex)
-df_afq$GroupSex <- factor(df_afq$GroupSex)
 
 # Tract
-tract <- "UNC_R"
+tract <- "UNC_L"
 df_tract <- df_afq[which(df_afq$tractID == tract), ]
 df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
@@ -217,7 +335,7 @@ summary(fit_gamma)  # R-sq = 0.819
 
 
 
-### --- Step 3: Model tract, covariates
+### --- Step 4: Model tract, covariates
 
 fit_cov_pds <- bam(dti_fa ~ Group +
     Sex +
@@ -233,7 +351,7 @@ gam.check(fit_cov_pds, rep = 500)
 
 # Test cov model against gamma
 # infoMessages('on')
-compareML(fit_gamma, fit_cov_pds) #PDS wins
+compareML(fit_gamma, fit_cov_pds) # PDS wins
 summary(fit_cov_pds) # R-sq = 0.85
 
 
@@ -255,12 +373,12 @@ df_pred <- data.frame(Group=df_tract$Group,
 
 ggplot(data = df_pred) +
   geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-  ggtitle("Tract: L. Uncinate") +
+  ggtitle("GAM Fit of L. Uncinate FA Values") +
   ylab("Fit FA")
 
 
 
-### --- Step 4: Test for differences
+### --- Step 5: Test for differences
 #
 # Check for group differences in spline.
 
@@ -269,17 +387,26 @@ par(mfrow=c(1,3))
 p01 <- plot_diff(fit_cov_pds,
     view="nodeID",
     comp=list(Group=c("0", "1")),
-    rm.ranef = T)
+    rm.ranef = T,
+    main = "Difference Scores, Low-Med",
+    ylab = "Est. FA difference",
+    xlab = "Tract Node")
 
 p02 <- plot_diff(fit_cov_pds,
     view="nodeID",
     comp=list(Group=c("0", "2")),
-    rm.ranef = T)
+    rm.ranef = T,
+    main = "Difference Scores, Low-High",
+    ylab = "Est. FA difference",
+    xlab = "Tract Node")
 
 p12 <- plot_diff(fit_cov_pds,
     view="nodeID",
     comp=list(Group=c("1", "2")),
-    rm.ranef = T)
+    rm.ranef = T,
+    main = "Difference Scores, Med-High",
+    ylab = "Est. FA difference",
+    xlab = "Tract Node")
 
 par(mfrow=c(1,1))
 
@@ -289,49 +416,33 @@ max_node_02 <- as.numeric(which(abs(p02$est) == max(abs(p02$est)))) - 1
 max_node_12 <- as.numeric(which(abs(p12$est) == max(abs(p12$est)))) - 1
 
 
-# regress node FA value on behavior
-df_tract$Fit <- df_pred$fit
 
-df_reg <- as.data.frame(df_tract[which(
+### --- Step 6: Regress
+#
+# regress node FA value on behavior
+
+df_max <- as.data.frame(df_tract[which(
   df_tract$nodeID == max_node_01 |
   df_tract$nodeID == max_node_02 |
   df_tract$nodeID == max_node_12
 ),])
-df_reduce <- as.data.frame(df_reg[,-c(1:2, 5, 7:10, 14:16)])
+df_reduce <- as.data.frame(df_max[,-c(1:2, 5, 7:10, 14:16)])
 df_reduce$nodeID <- factor(df_reduce$nodeID)
 
-ind_pos01 <- which(df_tract$nodeID == max_node_01 & 
-   (df_tract$Group == 0 | df_tract$Group == 1))
-df_pos01 <- as.data.frame(df_tract[ind_pos01,])
+ind_pos02 <- which(df_reduce$nodeID == max_node_02 &
+   (df_reduce$Group == 0 | df_reduce$Group == 2))
+df_pos02 <- as.data.frame(df_reduce[ind_pos02,])
 
-multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos01)
-summary(multi_reg)
-
-ggplot(df_pos01, aes(x=dti_fa, y=NegDP1wk)) +
+# negLGI x group
+ggplot(df_pos02, aes(x=dti_fa, y=NegLGI)) +
   geom_point() +
-  stat_smooth(method = lm)
-lm_01_neg <- lm(NegDP1wk ~ dti_fa, data=df_pos01)
-summary(lm_01_neg)
+  geom_smooth(method = "lm") +
+  facet_wrap(~ Group)
 
-ggplot(df_pos01, aes(x=dti_fa, y=NeuDP1wk)) +
-  geom_point() +
-  stat_smooth(method = lm)
-lm_01_neu <- lm(NeuDP1wk ~ dti_fa, data=df_pos01)
-summary(lm_01_neu)
+# xyplot(NegLGI ~ dti_fa, groups=Group, data=df_pos02, type='l')
+fit <- lmList(NegLGI ~ dti_fa | Group, data = df_pos02)
+summary(fit)
 
 
-ind_pos02 <- which(df_tract$nodeID == max_node_02 & 
-   (df_tract$Group == 0 | df_tract$Group == 2))
-df_pos02 <- as.data.frame(df_tract[ind_pos02,])
 
-multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos02)
-summary(multi_reg)
-
-
-ind_pos12 <- which(df_tract$nodeID == max_node_12 & 
-   (df_tract$Group == 1 | df_tract$Group == 2))
-df_pos12 <- as.data.frame(df_tract[ind_pos12,])
-
-multi_reg <- lm(cbind(NegDP1wk, NeuDP1wk) ~ dti_fa, data = df_pos12)
-summary(multi_reg)
 
