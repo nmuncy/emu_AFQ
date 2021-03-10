@@ -21,20 +21,71 @@ do_lcing = 1
 do_rcing = 1
 do_latr = 1
 
-### --- Step 1: Make dataset
-#
-# Add PDS, PARS, d-prime scores
-#   add sex, age
-#
-# Convert PARS to factors
-#   Low: <= 3
-#   Med: >3 & <=12
-#   Hi: >12
-#
-# Sex: 0 = female, 1 = male
-#
-# Writes analyses/Master_dataframe.csv
 
+# Plot functions
+func_ggplot_gam <- function(h_df, h_title){
+  
+  ggplot(data = h_df) +
+    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
+    ggtitle(h_title) +
+    ylab("Fit FA")
+  
+  ggsave(paste0(dataDir, "Plot_", tract, "_GAM.png"))
+}
+
+func_plot_diff <- function(h_df){
+  
+  png(filename = paste0(dataDir, "Plot_", tract, "_diff.png"), width = 1800, height = 600)
+  par(mfrow=c(1,3))
+  par(mar=c(5,5,4,2))
+  
+  p01 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("0", "1")),
+                   rm.ranef = T,
+                   main = "Difference Scores, Low-Med",
+                   ylab = "Est. FA difference",
+                   xlab = "Tract Node",
+                   cex.lab = 2,
+                   cex.axis = 2,
+                   cex.main = 2.5,
+                   cex.sub = 1.5)
+  
+  par(mar=c(5,3,4,2))
+  
+  p02 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("0", "2")),
+                   rm.ranef = T,
+                   main = "Difference Scores, Low-High",
+                   ylab = "",
+                   xlab = "Tract Node",
+                   cex.lab = 2,
+                   cex.axis = 2,
+                   cex.main = 2.5,
+                   cex.sub = 2)
+  
+  p12 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("1", "2")),
+                   rm.ranef = T,
+                   main = "Difference Scores, Med-High",
+                   ylab = "",
+                   xlab = "Tract Node",
+                   cex.lab = 2,
+                   cex.axis = 2,
+                   cex.main = 2.5,
+                   cex.sub = 2)
+  
+  par(mfrow=c(1,1))
+  par(mar=c(5,4,4,2))
+  dev.off()
+  
+  return(list(p01,p02,p12))
+}
+
+
+### --- Step 1: Make dataset
 func_makeDF <- function(){
 
   # Get data
@@ -169,12 +220,7 @@ func_makeDF <- function(){
 df_afq <- func_makeDF()
 
 
-
 ### --- Step 2: Check Memory behavior
-#
-# Run ANOVA for LGI, LDI
-#
-# Writes to analyses/Stats_AN_L?I.txt
 func_memStats <- function(){
   
   # get data, make lists
@@ -271,22 +317,17 @@ func_memStats <- function(){
 func_memStats()
 
 
+# Get data
+df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
+df_afq$Group <- factor(df_afq$Group)
+df_afq$Sex <- factor(df_afq$Sex)
+
 
 # L. Unc
 if(do_lunc == 1){
   
   ### --- Step 3: Model tract, no covariates
-  #
-  # Plot data, determine distribution,
-  #   compare model families.
-  #
-  # Plot best model
-  
-  # Get data
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
+
   # Tract
   tract <- "UNC_L"
   df_tract <- df_afq[which(df_afq$tractID == tract), ]
@@ -295,22 +336,21 @@ if(do_lunc == 1){
   # plot mean data
   ggplot(data = df_tract) +
     geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
+
   ggplot(data = df_tract) +
     geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
     geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
+
   # determine distribution
   descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  
+
   fit.beta <- fitdist(df_tract$dti_fa, "beta")
   plot(fit.beta)
   fit.beta$aic
-  
+
   fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
   plot(fit.gamma)
   fit.gamma$aic
-  
   
   #  determine k, compare families
   fit_gamma <- bam(dti_fa ~ Group +
@@ -333,13 +373,12 @@ if(do_lunc == 1){
   
   gam.check(fit_beta, rep = 500)
   
-  
   infoMessages('on')
   compareML(fit_gamma, fit_beta)  # fit_gamma recommended
   
   # get stats
   summary(fit_gamma)  # R-sq = 0.819
-  
+  capture.output(summary(fit_gamma), file = paste0(dataDir, tract, "_GAM.txt"))
   
   
   ### --- Step 4: Model tract, covariates
@@ -355,12 +394,10 @@ if(do_lunc == 1){
   
   gam.check(fit_cov_pds, rep = 500)
   
-  
   # Test cov model against gamma
   # infoMessages('on')
-  compareML(fit_gamma, fit_cov_pds) # PDS wins
-  summary(fit_cov_pds) # R-sq = 0.85
-  
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(dataDir, tract, "_GAM_comp.txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(dataDir, tract, "_GAM_cov.txt"))
   
   # plot
   df_pred <- predict.bam(
@@ -378,52 +415,21 @@ if(do_lunc == 1){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-    ggtitle("GAM Fit of L. Uncinate FA Values") +
-    ylab("Fit FA")
-  
+  func_ggplot_gam(df_pred, "GAM Fit of L. Uncinate FA Values")
   
   
   ### --- Step 5: Test for differences
   #
   # Check for group differences in spline.
+  plot_diff <- func_plot_diff(fit_cov_pds)
+  p01 <- plot_diff[[1]]
+  p02 <- plot_diff[[2]]
+  p12 <- plot_diff[[3]]
   
-  par(mfrow=c(1,3))
-  
-  p01 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p02 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p12 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  par(mfrow=c(1,1))
-  
-  
-  
+
   ### --- Step 6: Regress
-  #
-  # regress node FA value on behavior
-  
-  # find biggest difference
+
+  # find biggest difference, node location
   df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
   colnames(df_est) <- colnames(p01)
   df_est[,1:5] <- rbind(p01, p02, p12)
@@ -441,22 +447,20 @@ if(do_lunc == 1){
       (df_tract$Group == gA | df_tract$Group == gB)
   ),])
   
-  # negLGI x group
+  # linear models, plot sig
+  fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
+  # summary(fit)
+  capture.output(summary(fit), file = paste0(dataDir, tract, "_lm.txt"))
+  colnames(df_max$dti_fa) <- "FA Value"
   ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
     geom_point() +
     geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
+    facet_wrap(~ Group) +
+    ggtitle("FA Values Predicting Memory Outcome")
   
-  fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-  summary(fit)
+  ggsave(paste0(dataDir, "Plot_", tract, "_lm.png"))
   
-  # neuLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NeuLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
-  fit <- lmList(NeuLGI ~ dti_fa | Group, data = df_max)
+  fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
   summary(fit)
 }
 
@@ -464,35 +468,10 @@ if(do_lunc == 1){
 # R. UNC
 if(do_runc == 1){
   
-  # Get data
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
   # Tract
   tract <- "UNC_R"
   df_tract <- df_afq[which(df_afq$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
-  
-  # plot mean data
-  ggplot(data = df_tract) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  ggplot(data = df_tract) +
-    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  # determine distribution
-  descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  
-  fit.beta <- fitdist(df_tract$dti_fa, "beta")
-  plot(fit.beta)
-  fit.beta$aic
-  
-  fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
-  plot(fit.gamma)
-  fit.gamma$aic
-  
   
   #  determine k, compare families
   fit_gamma <- bam(dti_fa ~ Group +
@@ -515,12 +494,12 @@ if(do_runc == 1){
   
   gam.check(fit_beta, rep = 500)
   
-  
   infoMessages('on')
   compareML(fit_gamma, fit_beta)  # fit_gamma recommended
   
   # get stats
   summary(fit_gamma)  # R-sq = 0.89
+  capture.output(summary(fit_gamma), file = paste0(dataDir, tract, "_GAM.txt"))
   
   # covariates
   fit_cov_pds <- bam(dti_fa ~ Group +
@@ -534,12 +513,10 @@ if(do_runc == 1){
   
   gam.check(fit_cov_pds, rep = 500)
   
-  
   # Test cov model against gamma
   # infoMessages('on')
-  compareML(fit_gamma, fit_cov_pds) # PDS wins
-  summary(fit_cov_pds) # R-sq = 0.91
-  
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(dataDir, tract, "_GAM_comp.txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(dataDir, tract, "_GAM_cov.txt"))
   
   # plot
   df_pred <- predict.bam(
@@ -557,43 +534,13 @@ if(do_runc == 1){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-    ggtitle("GAM Fit of R. Uncinate FA Values") +
-    ylab("Fit FA")
-  
+  func_ggplot_gam(df_pred, "GAM Fit of R. Uncinate FA Values")
   
   # Check for group differences in spline.
-  
-  par(mfrow=c(1,3))
-  
-  p01 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p02 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p12 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  par(mfrow=c(1,1))
-  
-  
+  plot_diff <- func_plot_diff(fit_cov_pds)
+  p01 <- plot_diff[[1]]
+  p02 <- plot_diff[[2]]
+  p12 <- plot_diff[[3]]
   
   # find biggest difference
   df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
@@ -613,20 +560,9 @@ if(do_runc == 1){
       (df_tract$Group == gA | df_tract$Group == gB)
   ),])
   
-  # negLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
+  # beh x group
   fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
-  
-  # neuLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NeuLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
   
   fit <- lmList(NeuLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
@@ -637,36 +573,11 @@ if(do_runc == 1){
 # L. Cing
 if(do_lcing == 1){
   
-  # Get data
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
   # Tract
   tract <- "CGC_L"
   df_tract <- df_afq[which(df_afq$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
-  
-  # plot mean data
-  ggplot(data = df_tract) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  ggplot(data = df_tract) +
-    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  # determine distribution
-  descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  
-  fit.beta <- fitdist(df_tract$dti_fa, "beta")
-  plot(fit.beta)
-  fit.beta$aic
-  
-  fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
-  plot(fit.gamma)
-  fit.gamma$aic
-  
-  
+
   #  determine k, compare families
   fit_gamma <- bam(dti_fa ~ Group +
                      Sex +
@@ -688,12 +599,12 @@ if(do_lcing == 1){
   
   gam.check(fit_beta, rep = 500)
   
-  
   infoMessages('on')
   compareML(fit_gamma, fit_beta)  # fit_gamma recommended
   
   # get stats
   summary(fit_gamma)  # R-sq = 0.67
+  capture.output(summary(fit_gamma), file = paste0(dataDir, tract, "_GAM.txt"))
   
   # covariates
   fit_cov_pds <- bam(dti_fa ~ Group +
@@ -707,12 +618,10 @@ if(do_lcing == 1){
   
   gam.check(fit_cov_pds, rep = 500)
   
-  
   # Test cov model against gamma
   # infoMessages('on')
-  compareML(fit_gamma, fit_cov_pds) # PDS wins
-  summary(fit_cov_pds) # R-sq = 0.69
-  
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(dataDir, tract, "_GAM_comp.txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(dataDir, tract, "_GAM_cov.txt"))
   
   # plot
   df_pred <- predict.bam(
@@ -730,43 +639,13 @@ if(do_lcing == 1){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-    ggtitle("GAM Fit of L. Cingulate FA Values") +
-    ylab("Fit FA")
-  
+  func_ggplot_gam(df_pred, "GAM Fit of L. Cingulate FA Values")
   
   # Check for group differences in spline.
-  
-  par(mfrow=c(1,3))
-  
-  p01 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p02 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p12 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  par(mfrow=c(1,1))
-  
-  
+  plot_diff <- func_plot_diff(fit_cov_pds)
+  p01 <- plot_diff[[1]]
+  p02 <- plot_diff[[2]]
+  p12 <- plot_diff[[3]]
   
   # find biggest difference
   df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
@@ -787,20 +666,10 @@ if(do_lcing == 1){
   ),])
   
   # negLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
   # neuLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NeuLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NeuLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
@@ -809,36 +678,11 @@ if(do_lcing == 1){
 
 # R. Cing
 if(do_lcing == 1){
-  
-  # Get data
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
+
   # Tract
   tract <- "CGC_R"
   df_tract <- df_afq[which(df_afq$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
-  
-  # plot mean data
-  ggplot(data = df_tract) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  ggplot(data = df_tract) +
-    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  # determine distribution
-  descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  
-  fit.beta <- fitdist(df_tract$dti_fa, "beta")
-  plot(fit.beta)
-  fit.beta$aic
-  
-  fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
-  plot(fit.gamma)
-  fit.gamma$aic
-  
   
   #  determine k, compare families
   fit_gamma <- bam(dti_fa ~ Group +
@@ -861,12 +705,12 @@ if(do_lcing == 1){
   
   gam.check(fit_beta, rep = 500)
   
-  
   infoMessages('on')
   compareML(fit_gamma, fit_beta)  # fit_gamma recommended
   
   # get stats
-  summary(fit_gamma)  # R-sq = 0.48
+  summary(fit_gamma)  # R-sq = 0.49
+  capture.output(summary(fit_gamma), file = paste0(dataDir, tract, "_GAM.txt"))
   
   # covariates
   fit_cov_pds <- bam(dti_fa ~ Group +
@@ -880,12 +724,10 @@ if(do_lcing == 1){
   
   gam.check(fit_cov_pds, rep = 500)
   
-  
   # Test cov model against gamma
   # infoMessages('on')
-  compareML(fit_gamma, fit_cov_pds) # PDS wins
-  summary(fit_cov_pds) # R-sq = 0.51
-  
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(dataDir, tract, "_GAM_comp.txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(dataDir, tract, "_GAM_cov.txt"))
   
   # plot
   df_pred <- predict.bam(
@@ -903,41 +745,14 @@ if(do_lcing == 1){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-    ggtitle("GAM Fit of R. Cingulate FA Values") +
-    ylab("Fit FA")
+  func_ggplot_gam(df_pred, "GAM Fit of R. Cingulate FA Values")
   
   
   # Check for group differences in spline.
-  
-  par(mfrow=c(1,3))
-  
-  p01 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p02 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p12 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  par(mfrow=c(1,1))
+  plot_diff <- func_plot_diff(fit_cov_pds)
+  p01 <- plot_diff[[1]]
+  p02 <- plot_diff[[2]]
+  p12 <- plot_diff[[3]]
   
   
   
@@ -960,20 +775,10 @@ if(do_lcing == 1){
   ),])
   
   # negLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
   # neuLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NeuLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NeuLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
@@ -982,36 +787,11 @@ if(do_lcing == 1){
 
 # L. ATR
 if(do_latr == 1){
-  
-  # Get data
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
+
   # Tract
   tract <- "ATR_L"
   df_tract <- df_afq[which(df_afq$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
-  
-  # plot mean data
-  ggplot(data = df_tract) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  ggplot(data = df_tract) +
-    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  
-  # determine distribution
-  descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  
-  fit.beta <- fitdist(df_tract$dti_fa, "beta")
-  plot(fit.beta)
-  fit.beta$aic
-  
-  fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
-  plot(fit.gamma)
-  fit.gamma$aic
-  
   
   #  determine k, compare families
   fit_gamma <- bam(dti_fa ~ Group +
@@ -1040,6 +820,7 @@ if(do_latr == 1){
   
   # get stats
   summary(fit_gamma)  # R-sq = 0.864
+  capture.output(summary(fit_gamma), file = paste0(dataDir, tract, "_GAM.txt"))
   
   # covariates
   fit_cov_pds <- bam(dti_fa ~ Group +
@@ -1056,8 +837,8 @@ if(do_latr == 1){
   
   # Test cov model against gamma
   # infoMessages('on')
-  compareML(fit_gamma, fit_cov_pds) # PDS wins
-  summary(fit_cov_pds) # R-sq = 0.864
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(dataDir, tract, "_GAM_comp.txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(dataDir, tract, "_GAM_cov.txt"))
   
   
   # plot
@@ -1076,43 +857,13 @@ if(do_latr == 1){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
-    ggtitle("GAM Fit of R. Cingulate FA Values") +
-    ylab("Fit FA")
-  
+  func_ggplot_gam(df_pred, "GAM Fit of L. A. Thalamic Radiations FA Values")
   
   # Check for group differences in spline.
-  
-  par(mfrow=c(1,3))
-  
-  p01 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p02 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  p12 <- plot_diff(fit_cov_pds,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node")
-  
-  par(mfrow=c(1,1))
-  
-  
+  plot_diff <- func_plot_diff(fit_cov_pds)
+  p01 <- plot_diff[[1]]
+  p02 <- plot_diff[[2]]
+  p12 <- plot_diff[[3]]
   
   # find biggest difference
   df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
@@ -1133,20 +884,10 @@ if(do_latr == 1){
   ),])
   
   # negLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
   # neuLGI x group
-  ggplot(df_max, aes(x=dti_fa, y=NeuLGI)) +
-    geom_point() +
-    geom_smooth(method = "lm") +
-    facet_wrap(~ Group)
-  
   fit <- lmList(NeuLGI ~ dti_fa | Group, data = df_max)
   summary(fit)
   
