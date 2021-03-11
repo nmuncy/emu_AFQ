@@ -351,15 +351,15 @@ func_gam <- function(tract, df, outDir){
   df_tract <- df[which(df$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
   
-  # # plot mean data
-  # ggplot(data = df_tract) +
-  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  # 
-  # ggplot(data = df_tract) +
-  #   geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-  # 
-  # # determine distribution
+  # plot mean data
+  ggplot(data = df_tract) +
+    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+
+  ggplot(data = df_tract) +
+    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
+    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+
+  # determine distribution
   # descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
   # 
   # fit.beta <- fitdist(df_tract$dti_fa, "beta")
@@ -441,6 +441,10 @@ func_gam <- function(tract, df, outDir){
     h_tract = "R. Cingulum"
   }else if(tract == "ATR_L"){
     h_tract = "L. A. Thalamic Radiations"
+  }else if(tract == "ARC_L"){
+    h_tract = "L. Arcuate"
+  }else if(tract == "ARC_R"){
+    h_tract = "R. Arcuate"
   }
   plot_title = paste0("GAM Fit of ", h_tract," FA Values")
   func_ggplot_gam(df_pred, plot_title, outDir, tract)
@@ -512,6 +516,24 @@ summary(fit)
 
 # R Unc
 df_max <- func_gam("UNC_R", df_afq, dataDir)
+
+fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
+summary(fit)
+fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
+summary(fit)
+
+
+# L Arc
+df_max <- func_gam("ARC_L", df_afq, dataDir)
+
+fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
+summary(fit)
+fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
+summary(fit)
+
+
+# R Arc
+df_max <- func_gam("ARC_R", df_afq, dataDir)
 
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
