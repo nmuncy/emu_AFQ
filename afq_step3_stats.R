@@ -11,7 +11,7 @@ library("dplyr")
 library("lme4")
 
 
-
+# Functions
 func_makeDF <- function(){
   
   ### --- Notes
@@ -258,7 +258,7 @@ func_ggplot_gam <- function(h_df, h_title, outDir, tract){
     ggtitle(h_title) +
     ylab("Fit FA")
   
-  ggsave(paste0(outDir, "Plot_", tract, "_GAM.png"))
+  ggsave(paste0(outDir, "Plot_GAM_", tract, ".png"))
 }
 
 func_plot_diff <- function(h_df, outDir, tract){
@@ -269,7 +269,7 @@ func_plot_diff <- function(h_df, outDir, tract){
   # between two splines.
   # The difference values will be returned.
   
-  png(filename = paste0(outDir, "Plot_", tract, "_diff.png"), width = 1800, height = 600)
+  png(filename = paste0(outDir, "Plot_Diff_", tract, ".png"), width = 1800, height = 600)
   par(mfrow=c(1,3))
   par(mar=c(5,5,4,2))
   
@@ -396,7 +396,7 @@ func_gam <- function(tract, df, outDir){
   
   # get stats
   # summary(fit_gamma)
-  capture.output(summary(fit_gamma), file = paste0(outDir, tract, "_GAM.txt"))
+  capture.output(summary(fit_gamma), file = paste0(outDir, "Stats_GAM-gamma_", tract, ".txt"))
   
   
   ### Model tract with covariates
@@ -412,8 +412,8 @@ func_gam <- function(tract, df, outDir){
   # gam.check(fit_cov_pds, rep = 500)
   
   # Test cov model against gamma
-  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(outDir, tract, "_GAM_comp.txt"))
-  capture.output(summary(fit_cov_pds), file = paste0(outDir, tract, "_GAM_cov.txt"))
+  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(outDir, "Stats_GAM-comp_", tract, ".txt"))
+  capture.output(summary(fit_cov_pds), file = paste0(outDir, "Stats_GAM-cov_", tract, ".txt"))
   
   # plot
   df_pred <- predict.bam(
@@ -478,80 +478,70 @@ func_gam <- function(tract, df, outDir){
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_private/"
 
-
 # Make dataset
-df_afq <- func_makeDF()
-
+func_makeDF()
 
 # Check Memory behavior
 func_memStats()
 
 
-# Get data
+# Get data for GAMs
 df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
 df_afq$Group <- factor(df_afq$Group)
 df_afq$Sex <- factor(df_afq$Sex)
 
-
-### L Unc
-df_max <- func_gam("UNC_L", df_afq, dataDir)
+# L Unc
+tract <- "UNC_L"
+df_max <- func_gam(tract, df_afq, dataDir)
 
 # linear models, plot sig
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
-capture.output(summary(fit), file = paste0(dataDir, tract, "_lm.txt"))
+capture.output(summary(fit), file = paste0(dataDir, "Stats_LM_", tract, ".txt"))
 
 ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
   geom_point() +
   geom_smooth(method = "lm") +
   facet_wrap(~ Group) +
   ggtitle("FA Values Predicting Memory Outcome")
-ggsave(paste0(dataDir, "Plot_", tract, "_lm.png"))
+ggsave(paste0(dataDir, "Plot_LM_", tract, ".png"))
 
 fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
-
-### R Unc
+# R Unc
 df_max <- func_gam("UNC_R", df_afq, dataDir)
 
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
-
 fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
-
-### L Cing
+# L Cing
 df_max <- func_gam("CGC_L", df_afq, dataDir)
 
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
-
 fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
-
-### R Cing
+# R Cing
 df_max <- func_gam("CGC_R", df_afq, dataDir)
 
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
-
 fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
-
-### L ATR
+# L ATR
 df_max <- func_gam("ATR_L", df_afq, dataDir)
 
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
-
 fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
