@@ -351,13 +351,13 @@ func_gam <- function(tract, df, outDir){
   df_tract <- df[which(df$tractID == tract), ]
   df_tract$dti_fa <- round(df_tract$dti_fa, 3)
   
-  # plot mean data
-  ggplot(data = df_tract) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
-
-  ggplot(data = df_tract) +
-    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
-    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+  # # plot mean data
+  # ggplot(data = df_tract) +
+  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
+  # 
+  # ggplot(data = df_tract) +
+  #   geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
+  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
 
   # determine distribution
   # descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
@@ -502,6 +502,7 @@ df_max <- func_gam(tract, df_afq, dataDir)
 fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
 summary(fit)
 capture.output(summary(fit), file = paste0(dataDir, "Stats_LM_", tract, ".txt"))
+capture.output(str(summary(fit)), file = paste0(dataDir, "Stats_LM-more_", tract, ".txt"))
 
 ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
   geom_point() +
@@ -523,22 +524,22 @@ fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
 summary(fit)
 
 
-# L Arc
-df_max <- func_gam("ARC_L", df_afq, dataDir)
-
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
-
-
-# R Arc
-df_max <- func_gam("ARC_R", df_afq, dataDir)
-
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
+# # L Arc
+# df_max <- func_gam("ARC_L", df_afq, dataDir)
+# 
+# fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
+# summary(fit)
+# fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
+# summary(fit)
+# 
+# 
+# # R Arc
+# df_max <- func_gam("ARC_R", df_afq, dataDir)
+# 
+# fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
+# summary(fit)
+# fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
+# summary(fit)
 
 
 # L Cing
