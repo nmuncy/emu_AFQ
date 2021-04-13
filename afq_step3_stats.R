@@ -9,6 +9,9 @@ library("mgcViz")
 library("ez")
 library("dplyr")
 library("lme4")
+library("plotly")
+library("viridis")
+library("broom")
 
 
 # Functions
@@ -27,18 +30,18 @@ func_makeDF <- function(){
   colnames(df_afq) <- c("Counter", colnames(df_afq)[-1])
   df_full <- read.delim(paste0(privateDir, "emuR01_full_latest.csv"), sep = ",", header=T)
   df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
+  df_adis <- read.delim(paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T)
   
   # make lists
   subjList <- unique(df_afq$subjectID)
   tractList <- unique(df_afq$tractID)
   nodeList <- unique(df_afq$nodeID)
-  
-  # add group, pars6, pds, age
-  #   add d-primes, sex
-  df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- df_afq$Age <- NA
-  # df_afq$NegDP1wk <- df_afq$NeuDP1wk <- NA
+
+    # add group (Adis), pars6, pds
+  #   add LG/DI, sex, age
+  df_afq$Sex <- df_afq$Age <- NA
+  df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- NA
   df_afq$NegLDI <- df_afq$NeuLDI <- df_afq$NegLGI <- df_afq$NeuLGI <- NA
-  df_afq$Sex <- NA
   
   for(subj in subjList){
     
@@ -46,28 +49,46 @@ func_makeDF <- function(){
     ind_afq <- which(df_afq$subjectID == subj)
     ind_full <- which(df_full$src_subject_id == subj)
     ind_pds <- which(df_pds$emu_study_id == subj)
+    ind_adis <- which(df_adis$Participant.ID == subj)
     
-    # determine group
-    #   low=0-3, med=4-12, high>12
+    # add pars
     h_anx <- df_full[ind_full,]$pars_6
     
-    if(h_anx <= 3){
+    # if(h_anx <= 3){
+    #   h_group <- 0
+    # }else if(h_anx > 3 & h_anx < 13){
+    #   h_group <- 1
+    # }else if(h_anx > 12){
+    #   h_group <- 2
+    # }
+    
+    # determine group
+    #   0 = con, 1 = anx, 2 = oth
+    if(apply(
+        df_adis[ind_adis,], 
+        1, 
+        function(r) any(r %in% "None")
+      )){
       h_group <- 0
-    }else if(h_anx > 3 & h_anx < 13){
+    }else if(apply(
+        df_adis[ind_adis,], 
+        1, 
+        function(r) any(r %in% "Generalized Anxiety Disorder")
+      )){
       h_group <- 1
-    }else if(h_anx > 12){
+    }else{
       h_group <- 2
     }
     
-    # determine pds
+    # get pds
     h_pds <- df_pds[ind_pds,]$pds_shirtcliff
     
-    # determine age, sex
+    # get age, sex
     h_age <- df_full[ind_full,]$pinf_age
     h_sex <- substr(df_full[ind_full,]$sex, 1, 1)
     if(h_sex == "f"){h_sexF <- 0}else if(h_sex == "m"){h_sexF <- 1}
     
-    # Get Beh counts
+    # get Beh counts
     neg_num_hit <- df_full[ind_full,]$negtarght_cnt_1WK
     neg_num_miss <- df_full[ind_full,]$negtargms_cnt_1WK
     neg_num_Lcr <- df_full[ind_full,]$neglurecr_cnt_1WK
@@ -101,14 +122,7 @@ func_makeDF <- function(){
       }
     }
     
-    # Calculate Neg, Neu d'
-    # dp_neg <- qnorm(neg_num_hit/(neg_num_hit + neg_num_miss)) - 
-    #   qnorm(neg_num_Lfa/(neg_num_Lfa + neg_num_Lcr))
-    # 
-    # dp_neu <- qnorm(neu_num_hit/(neu_num_hit + neu_num_miss)) - 
-    #   qnorm(neu_num_Lfa/(neu_num_Lfa + neu_num_Lcr))
-    
-    # Calculate Neg, Neu LDI
+    # Calculate Neg/Neu LD/GI
     #   LDI = p(N|L) - p(N|T)
     #   LGI = p(O|L) - p(O|F)
     neg_LDI <- round(
@@ -138,8 +152,6 @@ func_makeDF <- function(){
     df_afq[ind_afq,]$Age <- h_age
     df_afq[ind_afq,]$Sex <- h_sexF
     
-    # df_afq[ind_afq,]$NegDP1wk <- round(dp_neg, 2)
-    # df_afq[ind_afq,]$NeuDP1wk <- round(dp_neu, 2)
     df_afq[ind_afq,]$NegLDI <- neg_LDI
     df_afq[ind_afq,]$NeuLDI <- neu_LDI
     df_afq[ind_afq,]$NegLGI <- neg_LGI
@@ -156,7 +168,7 @@ func_memStats <- function(){
   
   ### --- Notes
   #
-  # This function will check for conduct a
+  # This function will conduct a
   # WBRM ANOVA on memory measures.
   
   # get data, make lists
@@ -273,52 +285,55 @@ func_plot_diff <- function(h_df, outDir, tract){
   par(mfrow=c(1,3))
   par(mar=c(5,5,4,2))
   
-  p01 <- plot_diff(h_df,
-                   view="nodeID",
-                   comp=list(Group=c("0", "1")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-Med",
-                   ylab = "Est. FA difference",
-                   xlab = "Tract Node",
-                   cex.lab = 2,
-                   cex.axis = 2,
-                   cex.main = 2.5,
-                   cex.sub = 1.5)
+  capture.output(plot_diff(h_df,
+                     view="nodeID",
+                     comp=list(Group=c("0", "1")),
+                     rm.ranef = T,
+                     main = "Difference Scores, Con-Anx",
+                     ylab = "Est. FA difference",
+                     xlab = "Tract Node",
+                     cex.lab = 2,
+                     cex.axis = 2,
+                     cex.main = 2.5,
+                     cex.sub = 1.5),
+                 file = paste0(outDir, "Table_Diff_", tract, "_01.txt"))
   
   par(mar=c(5,3,4,2))
   
-  p02 <- plot_diff(h_df,
-                   view="nodeID",
-                   comp=list(Group=c("0", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Low-High",
-                   ylab = "",
-                   xlab = "Tract Node",
-                   cex.lab = 2,
-                   cex.axis = 2,
-                   cex.main = 2.5,
-                   cex.sub = 2)
+  capture.output(plot_diff(h_df,
+                     view="nodeID",
+                     comp=list(Group=c("0", "2")),
+                     rm.ranef = T,
+                     main = "Difference Scores, Con-Oth",
+                     ylab = "",
+                     xlab = "Tract Node",
+                     cex.lab = 2,
+                     cex.axis = 2,
+                     cex.main = 2.5,
+                     cex.sub = 2),
+                 file = paste0(outDir, "Table_Diff_", tract, "_02.txt"))
   
-  p12 <- plot_diff(h_df,
-                   view="nodeID",
-                   comp=list(Group=c("1", "2")),
-                   rm.ranef = T,
-                   main = "Difference Scores, Med-High",
-                   ylab = "",
-                   xlab = "Tract Node",
-                   cex.lab = 2,
-                   cex.axis = 2,
-                   cex.main = 2.5,
-                   cex.sub = 2)
+  capture.output(plot_diff(h_df,
+                     view="nodeID",
+                     comp=list(Group=c("1", "2")),
+                     rm.ranef = T,
+                     main = "Difference Scores, Anx-Oth",
+                     ylab = "",
+                     xlab = "Tract Node",
+                     cex.lab = 2,
+                     cex.axis = 2,
+                     cex.main = 2.5,
+                     cex.sub = 2),
+                 file = paste0(outDir, "Table_Diff_", tract, "_12.txt"))
   
   par(mfrow=c(1,1))
   par(mar=c(5,4,4,2))
   dev.off()
   
-  return(list(p01,p02,p12))
+  # return(list(p01,p02,p12))
 }
 
-func_gam <- function(tract, df, outDir){
+func_gam <- function(tract, df_tract, outDir){
   
   ### This function has 3 main steps
   #
@@ -347,10 +362,6 @@ func_gam <- function(tract, df, outDir){
   
   ### Model tract, no covariates
   
-  # Subset data by tract
-  df_tract <- df[which(df$tractID == tract), ]
-  df_tract$dti_fa <- round(df_tract$dti_fa, 3)
-  
   # # plot mean data
   # ggplot(data = df_tract) +
   #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
@@ -359,7 +370,7 @@ func_gam <- function(tract, df, outDir){
   #   geom_point(mapping = aes(x=nodeID, y=dti_fa, color=Group),size=0.3) +
   #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
 
-  # determine distribution
+  # # determine distribution
   # descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
   # 
   # fit.beta <- fitdist(df_tract$dti_fa, "beta")
@@ -431,50 +442,75 @@ func_gam <- function(tract, df, outDir){
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
   
-  if(tract == "UNC_L"){
-    h_tract = "L. Uncinate"
-  }else if(tract == "UNC_R"){
-    h_tract = "R. Uncinate"
-  }else if(tract == "CGC_L"){
-    h_tract = "L. Cingulum"
-  }else if(tract == "CGC_R"){
-    h_tract = "R. Cingulum"
-  }else if(tract == "ATR_L"){
-    h_tract = "L. A. Thalamic Radiations"
-  }else if(tract == "ARC_L"){
-    h_tract = "L. Arcuate"
-  }else if(tract == "ARC_R"){
-    h_tract = "R. Arcuate"
-  }
+  h_tract <- switch(
+    tract,
+    "UNC_L" = "L. Uncinate",
+    "UNC_R" = "R. Uncinate",
+    "CGC_L" = "L. Cingulum",
+    "CGC_R" = "R. Cingulum",
+    "ATR_L" = "L. A. Thalamic Radiations",
+    "ARC_L" = "L. Arcuate",
+    "ARC_R" = "R. Arcuate"
+  )
+  
   plot_title = paste0("GAM Fit of ", h_tract," FA Values")
   func_ggplot_gam(df_pred, plot_title, outDir, tract)
+  return(fit_cov_pds)
+}
   
+func_diff <- function(model, tract, outDir){
   
   ### Test for differences
-  plot_diff <- func_plot_diff(fit_cov_pds, outDir, tract)
-  p01 <- plot_diff[[1]]
-  p02 <- plot_diff[[2]]
-  p12 <- plot_diff[[3]]
+  func_plot_diff(model, outDir, tract)
+
+  # make table of sig regions
+  df_out <- as.data.frame(matrix(NA, nrow=1, ncol=4))
+  colnames(df_out) <- c("Comparison", "Section", "Start", "End")
+  for(comp in c("01", "02", "12")){
+    h_cmd = paste0("tail -n +10 ", dataDir, "Table_Diff_", tract, "_", comp, ".txt | sed 's/-/,/g'")
+    h_lines <- system(h_cmd, intern = T)
+    h_df <- read.table(text=paste(h_lines, collapse = "\n"), header = F, stringsAsFactors = F, sep = ",")
+    for(i in 1:dim(h_df)[1]){
+      df_out <- rbind(df_out, c(comp, i, h_df[i,1], h_df[i,2]))
+    }
+  }
+  df_out <- na.omit(df_out)
+  return(df_out)
+}
+
+func_dflm <- function(comp, df_tract){
   
-  # find biggest difference, node location
-  df_est <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
-  colnames(df_est) <- colnames(p01)
-  df_est[,1:5] <- rbind(p01, p02, p12)
+  grpA <- as.numeric(substr(comp, start=1, stop=1))
+  grpB <- as.numeric(substr(comp, start=2, stop=2))
+  df_comp <- df_diff[which(df_diff$Comparison == comp),]
   
-  ind_max <- which(abs(df_est$est) == max(abs(df_est$est)))
-  node_max <- df_est[ind_max,]$nodeID
-  h_groups <- df_est[ind_max,]$comp
-  groups <- stringr::str_extract_all(h_groups, "\\d+")
-  gA <- as.numeric(groups[[1]][1])
-  gB <- as.numeric(groups[[1]][2])
+  # make dataframe
+  subjList <- unique(df_tract[which(df_tract$Group == grpA | df_tract$Group == grpB),]$subjectID)
   
-  # make df
-  df_max <- as.data.frame(df_tract[which(
-    df_tract$nodeID == node_max &
-      (df_tract$Group == gA | df_tract$Group == gB)
-  ),])
+  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
+  colnames(df_lm) <- c("Subj", "AvgFA", "Pars6", "Group", "NeuLGI", "NeuLDI", "NegLGI", "NegLDI")
+  df_lm$Subj <- subjList
   
-  return(df_max)
+  for(subj in subjList){
+    h_mean <- vector()
+    for(i in 1:dim(df_comp)[1]){
+      h_start <- which(df_tract$subjectID == subj & df_tract$nodeID == df_comp[i,]$Start)
+      h_end <- which(df_tract$subjectID == subj & df_tract$nodeID == df_comp[i,]$End)
+      h_mean <- c(h_mean, mean(df_tract[h_start:h_end,]$dti_fa))
+    }
+    ind_out <- which(df_lm$Subj == subj)
+    df_lm[ind_out,]$AvgFA <- round(mean(h_mean), 4)
+    
+    ind_subj <- which(df_tract$subjectID == subj)[1]
+    df_lm[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
+    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_subj,]$Group)-1
+    df_lm[ind_out,]$NeuLGI <- df_tract[ind_subj,]$NeuLGI
+    df_lm[ind_out,]$NeuLDI <- df_tract[ind_subj,]$NeuLDI
+    df_lm[ind_out,]$NegLGI <- df_tract[ind_subj,]$NegLGI
+    df_lm[ind_out,]$NegLDI <- df_tract[ind_subj,]$NegLDI
+  }
+  df_lm$Group <- factor(df_lm$Group)
+  return(df_lm)
 }
 
 
@@ -494,77 +530,44 @@ df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
 df_afq$Group <- factor(df_afq$Group)
 df_afq$Sex <- factor(df_afq$Sex)
 
-# L Unc
+### -- L Unc
+# set up df
 tract <- "UNC_L"
-df_max <- func_gam(tract, df_afq, dataDir)
+df_tract <- df_afq[which(df_afq$tractID == tract), ]
+df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
-# linear models, plot sig
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-capture.output(summary(fit), file = paste0(dataDir, "Stats_LM_", tract, ".txt"))
-capture.output(str(summary(fit)), file = paste0(dataDir, "Stats_LM-more_", tract, ".txt"))
+# run gam, plot
+gam_model <- func_gam(tract, df_tract, dataDir)
+df_diff <- func_diff(gam_model, tract, dataDir)
 
-ggplot(df_max, aes(x=dti_fa, y=NegLGI)) +
-  geom_point() +
-  geom_smooth(method = "lm") +
-  facet_wrap(~ Group) +
-  ggtitle("FA Values Predicting Memory Outcome")
-ggsave(paste0(dataDir, "Plot_LM_", tract, ".png"))
+# predict mem score from dti diff
+df_lm <- func_dflm("01", df_tract)
+fit.int <- lm(NegLGI ~ AvgFA*Group, data = df_lm)
+summary(fit.int)
+anova(fit.int)
+# fit.cor <- df_lm[, cor(NegLGI, AvgFA), by = Group]
 
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
+ggplot(df_lm) +
+  aes(x=AvgFA, y=NegLGI, shape=Group) +
+  geom_point(aes(color=Group)) +
+  geom_smooth(method = "lm")
 
-
-# R Unc
-df_max <- func_gam("UNC_R", df_afq, dataDir)
-
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
-
-
-# # L Arc
-# df_max <- func_gam("ARC_L", df_afq, dataDir)
+# df_long <- as.data.frame(matrix(NA, nrow=2*dim(df_lm)[1], ncol=4))
+# colnames(df_long) <- c("Subj", "Group", "Meas", "Value")
+# df_long$Subj <- rep(df_lm$Subj, 2)
+# df_long$Group <- rep(df_lm$Group, 2)
+# df_long$Meas <- c(rep("NegLGI", dim(df_lm)[1]), rep("AvgFA", dim(df_lm)[1]))
+# df_long$Value <- c(df_lm$NegLGI, df_lm$AvgFA)
 # 
-# fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-# summary(fit)
-# fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-# summary(fit)
-# 
-# 
-# # R Arc
-# df_max <- func_gam("ARC_R", df_afq, dataDir)
-# 
-# fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-# summary(fit)
-# fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-# summary(fit)
+# ggplot(df_lm, aes(x=AvgFA, y=NegLGI)) +
+#   geom_point() +
+#   geom_smooth(method = "lm") +
+#   facet_wrap(~ Group)
 
 
-# L Cing
-df_max <- func_gam("CGC_L", df_afq, dataDir)
-
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
 
 
-# R Cing
-df_max <- func_gam("CGC_R", df_afq, dataDir)
-
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
 
 
-# L ATR
-df_max <- func_gam("ATR_L", df_afq, dataDir)
 
-fit <- lmList(NegLGI ~ dti_fa | Group, data = df_max)
-summary(fit)
-fit <- lmList(NegLDI ~ dti_fa | Group, data = df_max)
-summary(fit)
 
