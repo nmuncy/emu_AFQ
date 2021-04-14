@@ -9,9 +9,9 @@ library("mgcViz")
 library("ez")
 library("dplyr")
 library("lme4")
-library("plotly")
-library("viridis")
-library("broom")
+# library("plotly")
+# library("viridis")
+# library("broom")
 
 
 # Functions
@@ -37,7 +37,7 @@ func_makeDF <- function(){
   tractList <- unique(df_afq$tractID)
   nodeList <- unique(df_afq$nodeID)
 
-    # add group (Adis), pars6, pds
+  # add group (Adis), pars6, pds
   #   add LG/DI, sex, age
   df_afq$Sex <- df_afq$Age <- NA
   df_afq$Group <- df_afq$Pars6 <- df_afq$PDS <- NA
@@ -333,6 +333,40 @@ func_plot_diff <- function(h_df, outDir, tract){
   # return(list(p01,p02,p12))
 }
 
+func_df_diff <- function(h_df){
+  
+  ### --- Notes:
+  #
+  # Return node of max diff per contrast
+  
+  p01 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("0", "1")),
+                   rm.ranef = T,
+                   plot = F)
+  m01 <- p01[which(abs(p01$est) == max(abs(p01$est))),]$nodeID
+  
+  p02 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("0", "2")),
+                   rm.ranef = T,
+                   plot = F)
+  m02 <- p02[which(abs(p02$est) == max(abs(p02$est))),]$nodeID
+  
+  p12 <- plot_diff(h_df,
+                   view="nodeID",
+                   comp=list(Group=c("1", "2")),
+                   rm.ranef = T, 
+                   plot = F)
+  m12 <- p12[which(abs(p12$est) == max(abs(p12$est))),]$nodeID
+  
+  df_out <- as.data.frame(matrix(NA, nrow=3, ncol=2))
+  colnames(df_out) <- c("Comparison", "Node")
+  df_out[,1] <- c("01", "02", "12")
+  df_out[,2] <- c(m01, m02, m12)
+  return(df_out)
+}
+
 func_gam <- function(tract, df_tract, outDir){
   
   ### This function has 3 main steps
@@ -460,7 +494,7 @@ func_gam <- function(tract, df_tract, outDir){
   
 func_diff <- function(model, tract, outDir){
   
-  ### Test for differences
+  ### Test for differences in GAM splines
   func_plot_diff(model, outDir, tract)
 
   # make table of sig regions
@@ -478,7 +512,7 @@ func_diff <- function(model, tract, outDir){
   return(df_out)
 }
 
-func_dflm <- function(comp, df_tract){
+func_dflm <- function(comp, df_tract, df_diff){
   
   grpA <- as.numeric(substr(comp, start=1, stop=1))
   grpB <- as.numeric(substr(comp, start=2, stop=2))
@@ -513,6 +547,35 @@ func_dflm <- function(comp, df_tract){
   return(df_lm)
 }
 
+func_dflm_max <- function(comp, df_tract, df_max){
+  
+  grpA <- as.numeric(substr(comp, start=1, stop=1))
+  grpB <- as.numeric(substr(comp, start=2, stop=2))
+  node <- df_max[which(df_max$Comparison == comp),]$Node
+  
+  # make dataframe
+  subjList <- unique(df_tract[which(df_tract$Group == grpA | df_tract$Group == grpB),]$subjectID)
+  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
+  colnames(df_lm) <- c("Subj", "MaxFA", "Pars6", "Group", "NeuLGI", "NeuLDI", "NegLGI", "NegLDI")
+  df_lm$Subj <- subjList
+  
+  for(subj in subjList){
+    
+    ind_data <- which(df_tract$subjectID == subj & df_tract$nodeID == node)
+    ind_out <- which(df_lm$Subj == subj)
+    
+    df_lm[ind_out,]$MaxFA <- df_tract[ind_data,]$dti_fa
+    df_lm[ind_out,]$Pars6 <- df_tract[ind_data,]$Pars6
+    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_data,]$Group)-1
+    df_lm[ind_out,]$NeuLGI <- df_tract[ind_data,]$NeuLGI
+    df_lm[ind_out,]$NeuLDI <- df_tract[ind_data,]$NeuLDI
+    df_lm[ind_out,]$NegLGI <- df_tract[ind_data,]$NegLGI
+    df_lm[ind_out,]$NegLDI <- df_tract[ind_data,]$NegLDI
+  }
+  df_lm$Group <- factor(df_lm$Group)
+  return(df_lm)
+}
+
 
 # Orienting vars
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
@@ -524,11 +587,11 @@ func_makeDF()
 # Check Memory behavior
 func_memStats()
 
-
 # Get data for GAMs
 df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
 df_afq$Group <- factor(df_afq$Group)
 df_afq$Sex <- factor(df_afq$Sex)
+
 
 ### -- L Unc
 # set up df
@@ -539,18 +602,28 @@ df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 # run gam, plot
 gam_model <- func_gam(tract, df_tract, dataDir)
 df_diff <- func_diff(gam_model, tract, dataDir)
+df_max <- func_df_diff(gam_model)
 
-# predict mem score from dti diff
-df_lm <- func_dflm("01", df_tract)
+# predict mem score from dti average diff
+df_lm <- func_dflm("01", df_tract, df_diff)
 fit.int <- lm(NegLGI ~ AvgFA*Group, data = df_lm)
 summary(fit.int)
 anova(fit.int)
-# fit.cor <- df_lm[, cor(NegLGI, AvgFA), by = Group]
 
 ggplot(df_lm) +
   aes(x=AvgFA, y=NegLGI, shape=Group) +
   geom_point(aes(color=Group)) +
   geom_smooth(method = "lm")
+
+fit.cov <- lm(NegLGI ~ AvgFA*Group + Pars6, data = df_lm)
+summary(fit.cov)
+anova(fit.cov)
+
+
+# ggplot(df_lm, aes(x=AvgFA, y=NegLGI)) +
+#   geom_point() +
+#   geom_smooth(method = "lm") +
+#   facet_wrap(~ Group)
 
 # df_long <- as.data.frame(matrix(NA, nrow=2*dim(df_lm)[1], ncol=4))
 # colnames(df_long) <- c("Subj", "Group", "Meas", "Value")
@@ -558,13 +631,21 @@ ggplot(df_lm) +
 # df_long$Group <- rep(df_lm$Group, 2)
 # df_long$Meas <- c(rep("NegLGI", dim(df_lm)[1]), rep("AvgFA", dim(df_lm)[1]))
 # df_long$Value <- c(df_lm$NegLGI, df_lm$AvgFA)
-# 
-# ggplot(df_lm, aes(x=AvgFA, y=NegLGI)) +
-#   geom_point() +
-#   geom_smooth(method = "lm") +
-#   facet_wrap(~ Group)
 
+# predict mem score from dti max diff
+df_lm <- func_dflm_max("01", df_tract, df_max)
+fit.int <- lm(NegLGI ~ MaxFA*Group, data = df_lm)
+summary(fit.int)
+anova(fit.int)
 
+ggplot(df_lm) +
+  aes(x=MaxFA, y=NegLGI, shape=Group) +
+  geom_point(aes(color=Group)) +
+  geom_smooth(method = "lm")
+
+fit.cov <- lm(NegLGI ~ MaxFA*Group + Pars6, data = df_lm)
+summary(fit.cov)
+anova(fit.cov)
 
 
 
