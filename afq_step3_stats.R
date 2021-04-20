@@ -9,9 +9,6 @@ library("mgcViz")
 library("ez")
 library("dplyr")
 library("lme4")
-# library("plotly")
-# library("viridis")
-# library("broom")
 
 
 # Functions
@@ -54,30 +51,16 @@ func_makeDF <- function(){
     # add pars
     h_anx <- df_full[ind_full,]$pars_6
     
-    # if(h_anx <= 3){
-    #   h_group <- 0
-    # }else if(h_anx > 3 & h_anx < 13){
-    #   h_group <- 1
-    # }else if(h_anx > 12){
-    #   h_group <- 2
-    # }
-    
     # determine group
-    #   0 = con, 1 = anx, 2 = oth
-    if(apply(
-        df_adis[ind_adis,], 
-        1, 
-        function(r) any(r %in% "None")
-      )){
-      h_group <- 0
-    }else if(apply(
-        df_adis[ind_adis,], 
-        1, 
-        function(r) any(r %in% "Generalized Anxiety Disorder")
-      )){
+    #   0 = con, 1 = anx
+    #   skip subj when not anx/phobia/control
+    h_search <- c("Anxiety", "Phobia")
+    if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
       h_group <- 1
+    }else if(length(grep("None", df_adis[ind_adis,])) != 0){
+      h_group <- 0
     }else{
-      h_group <- 2
+      next
     }
     
     # get pds
@@ -118,7 +101,7 @@ func_makeDF <- function(){
                    "neu_num_Ffa")){
       check_val = get(check)
       if(check_val == 0){
-        assign(check, 0.1)
+        assign(check, 0.001)
       }
     }
     
@@ -158,10 +141,10 @@ func_makeDF <- function(){
     df_afq[ind_afq,]$NeuLGI <- neu_LGI
   }
   
-  # write csv
+  # clean NA (from Group skip), write csv
+  df_out <- df_afq[complete.cases(df_afq$Group),]
   outFile <- paste0(dataDir, "Master_dataframe.csv")
-  write.csv(df_afq, file=outFile, quote=F, row.names = F)
-  return(df_afq)
+  write.csv(df_out, file=outFile, quote=F, row.names = F)
 }
 
 func_memStats <- function(){
@@ -646,6 +629,46 @@ ggplot(df_lm) +
 fit.cov <- lm(NegLGI ~ MaxFA*Group + Pars6, data = df_lm)
 summary(fit.cov)
 anova(fit.cov)
+
+
+# data for dana
+df_adis <- read.delim(paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T)
+df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
+
+subjList <- unique(df_tract$subjectID)
+df_dana <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
+colnames(df_dana) <- c("Subject", "Age", "Sex", "PDS", "Pars6", "ADIS.1", "ADIS.2", "ADIS.3", "ADIS.4")
+df_dana$Subject <- subjList
+
+for(subj in subjList){
+
+  ind_subj <- grep(subj, df_tract$subjectID)[1]
+  ind_adis <- grep(subj, df_adis$Participant.ID)
+  ind_pds <- grep(subj, df_pds$emu_study_id)
+  ind_out <- grep(subj, df_dana$Subject)
+
+  df_dana[ind_out,]$Age <- df_tract[ind_subj,]$Age
+  df_dana[ind_out,]$Sex <- df_pds[ind_pds,]$pinf_gender
+  df_dana[ind_out,]$PDS <- as.integer(df_tract[ind_subj,]$PDS)
+  df_dana[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
+  df_dana[ind_out,6:9] <- df_adis[ind_adis,3:6]
+}
+# write.csv(df_dana, file="~/Desktop/dana_table.csv", quote = F, row.names=F, col.names = T)
+
+df_dana$Test <- NA
+for(i in 1:dim(df_dana)[1]){
+  
+  ind_adis <- which(df_adis$Participant.ID == df_dana[i,]$Subject)
+  h_search <- c("Anxiety", "Phobia")
+  
+  if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
+    df_dana[i,]$Test <- "Anx"
+  }else if(length(grep("None", df_adis[ind_adis,])) != 0){
+    df_dana[i,]$Test <- "Con"
+  }else{df_dana[i,]$Test <- "Excl"}
+  
+
+}
 
 
 
