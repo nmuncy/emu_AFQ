@@ -29,11 +29,22 @@ func_makeDF <- function(g_type){
   # Writes dataDir/Master_dataframe.csv
   
   # Get data
-  df_afq <- read.delim(paste0(dataDir, "tract_profiles.csv"), sep = ",", header = T)
+  df_afq <- read.delim(
+    paste0(dataDir, "tract_profiles.csv"), sep = ",", header = T
+  )
   colnames(df_afq) <- c("Counter", colnames(df_afq)[-1])
-  df_full <- read.delim(paste0(privateDir, "emuR01_full_latest.csv"), sep = ",", header=T)
-  df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
-  df_adis <- read.delim(paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T)
+  
+  df_full <- read.delim(
+    paste0(privateDir, "emuR01_full_latest.csv"), sep = ",", header=T
+  )
+  
+  df_pds <- read.delim(
+    paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T
+  )
+  
+  df_adis <- read.delim(
+    paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T
+  )
   
   # make lists
   subjList <- unique(df_afq$subjectID)
@@ -64,8 +75,11 @@ func_makeDF <- function(g_type){
     #       1 = GAD in dx.1, or dx GAD but SAD not dx.1
     #
     # ugly - maybe convert to case switch?
+    
     if(g_type == 1){
+      
       h_search <- c("Anxiety", "Phobia")
+      
       if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
         h_group <- 1
       }else if(length(grep("None", df_adis[ind_adis,])) != 0){
@@ -73,15 +87,20 @@ func_makeDF <- function(g_type){
       }else{
         next
       }
+      
     }else if(g_type == 2){
+      
       h_search <- c("Separation", "Social")
+      
       if(
         grepl("Gen", df_adis[ind_adis,]$Diagnosis.1) == T |
         (sum(grep("Gen", df_adis[ind_adis,])) != 0 &
          sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) == 0)
       ){
         h_group <- 1
-      }else if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
+      }else if(
+        sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0
+      ){
         h_group <- 2
       }else if(length(grep("None", df_adis[ind_adis,])) != 0){
         h_group <- 0
@@ -175,7 +194,7 @@ func_makeDF <- function(g_type){
   return(df_out)
 }
 
-func_memStats <- function(){
+func_memStats <- function(df_afq){
   
   ### --- Notes
   #
@@ -183,7 +202,7 @@ func_memStats <- function(){
   # WBRM ANOVA on memory measures.
   
   # get data, make lists
-  df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
+  # df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
   df_afq$Group <- factor(df_afq$Group)
   df_afq$Sex <- factor(df_afq$Sex)
   
@@ -293,7 +312,10 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
   # The difference values will be returned.
   if(g_type == 2){
     
-    png(filename = paste0(outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), width = 1800, height = 600)
+    png(filename = paste0(
+        outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"
+      ), width = 1800, height = 600
+    )
     par(mfrow=c(1,3))
     par(mar=c(5,5,4,2))
     
@@ -308,7 +330,12 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                        cex.axis = 2,
                        cex.main = 2.5,
                        cex.sub = 1.5),
-                   file = paste0(outDir, "Table_Diff_", tract, "_", "G", g_type, "_01.txt"))
+                   file = paste0(outDir, 
+                                 "Table_Diff_", 
+                                 tract, "_", "G", 
+                                 g_type, "_01.txt"
+                                 )
+                   )
     
     par(mar=c(5,3,4,2))
     
@@ -323,27 +350,41 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                        cex.axis = 2,
                        cex.main = 2.5,
                        cex.sub = 2),
-                   file = paste0(outDir, "Table_Diff_", tract, "_", "G", g_type, "_02.txt"))
+                   file = paste0(outDir, 
+                                 "Table_Diff_", 
+                                 tract, "_", "G", 
+                                 g_type, "_02.txt"
+                                 )
+                   )
     
     capture.output(plot_diff(h_df,
-                       view="nodeID",
-                       comp=list(Group=c("1", "2")),
-                       rm.ranef = T,
-                       main = "Difference Scores, GAD-SAD",
-                       ylab = "",
-                       xlab = "Tract Node",
-                       cex.lab = 2,
-                       cex.axis = 2,
-                       cex.main = 2.5,
-                       cex.sub = 2),
-                   file = paste0(outDir, "Table_Diff_", tract, "_", "G", g_type, "_12.txt"))
+                             view="nodeID",
+                             comp=list(Group=c("1", "2")),
+                             rm.ranef = T,
+                             main = "Difference Scores, GAD-SAD",
+                             ylab = "",
+                             xlab = "Tract Node",
+                             cex.lab = 2,
+                             cex.axis = 2,
+                             cex.main = 2.5,
+                             cex.sub = 2),
+                   file = paste0(outDir, 
+                                 "Table_Diff_", 
+                                 tract, "_", "G", 
+                                 g_type, "_12.txt"
+                                 )
+                   )
     
     par(mfrow=c(1,1))
     par(mar=c(5,4,4,2))
     dev.off()
     
   }else if(g_type == 1){
-    png(filename = paste0(outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), width = 600, height = 600)
+    
+    png(filename = paste0(
+      outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
+      width = 600, height = 600
+    )
 
     capture.output(plot_diff(h_df,
                              view="nodeID",
@@ -356,7 +397,12 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                              cex.axis = 2,
                              cex.main = 2.5,
                              cex.sub = 1.5),
-                   file = paste0(outDir, "Table_Diff_", tract, "_", "G", g_type, "_01.txt"))
+                   file = paste0(outDir, 
+                                 "Table_Diff_", 
+                                 tract, "_", "G",
+                                 g_type, "_01.txt"
+                                 )
+                   )
     dev.off()
   }
   
@@ -369,11 +415,13 @@ func_df_diff <- function(h_df, g_type){
   #
   # Return node of max diff per contrast
   if(g_type == 2){
+    
     p01 <- plot_diff(h_df,
                      view="nodeID",
                      comp=list(Group=c("0", "1")),
                      rm.ranef = T,
                      plot = F)
+    
     m01 <- p01[which(abs(p01$est) == max(abs(p01$est))),]$nodeID
     
     p02 <- plot_diff(h_df,
@@ -381,6 +429,7 @@ func_df_diff <- function(h_df, g_type){
                      comp=list(Group=c("0", "2")),
                      rm.ranef = T,
                      plot = F)
+    
     m02 <- p02[which(abs(p02$est) == max(abs(p02$est))),]$nodeID
     
     p12 <- plot_diff(h_df,
@@ -388,6 +437,7 @@ func_df_diff <- function(h_df, g_type){
                      comp=list(Group=c("1", "2")),
                      rm.ranef = T, 
                      plot = F)
+    
     m12 <- p12[which(abs(p12$est) == max(abs(p12$est))),]$nodeID
     
     df_out <- as.data.frame(matrix(NA, nrow=3, ncol=2))
@@ -396,11 +446,13 @@ func_df_diff <- function(h_df, g_type){
     df_out[,2] <- c(m01, m02, m12)
     
   }else if(g_type == 1){
+    
     p01 <- plot_diff(h_df,
                      view="nodeID",
                      comp=list(Group=c("0", "1")),
                      rm.ranef = T,
                      plot = F)
+    
     m01 <- p01[which(abs(p01$est) == max(abs(p01$est))),]$nodeID
     
     df_out <- as.data.frame(matrix(NA, nrow=1, ncol=2))
@@ -486,7 +538,10 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   
   # get stats
   # summary(fit_gamma)
-  capture.output(summary(fit_gamma), file = paste0(outDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt"))
+  capture.output(
+    summary(fit_gamma), 
+    file = paste0(outDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt")
+  )
   
   
   ### Model tract with covariates
@@ -502,8 +557,14 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   # gam.check(fit_cov_pds, rep = 500)
   
   # Test cov model against gamma
-  capture.output(compareML(fit_gamma, fit_cov_pds), file = paste0(outDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt"))
-  capture.output(summary(fit_cov_pds), file = paste0(outDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt"))
+  capture.output(
+    compareML(fit_gamma, fit_cov_pds), 
+    file = paste0(outDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt")
+  )
+  capture.output(
+    summary(fit_cov_pds), 
+    file = paste0(outDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt")
+  )
   
   # plot
   df_pred <- predict.bam(
@@ -524,12 +585,7 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   h_tract <- switch(
     tract,
     "UNC_L" = "L. Uncinate",
-    "UNC_R" = "R. Uncinate",
-    "CGC_L" = "L. Cingulum",
-    "CGC_R" = "R. Cingulum",
-    "ATR_L" = "L. A. Thalamic Radiations",
-    "ARC_L" = "L. Arcuate",
-    "ARC_R" = "R. Arcuate"
+    "FA" = "A. Forceps"
   )
   
   plot_title = paste0("GAM Fit of ", h_tract," FA Values")
@@ -551,9 +607,21 @@ func_diff <- function(model, tract, outDir, g_type){
     compList <- c("01", "02", "12")
   }
   for(comp in compList){
-    h_cmd = paste0("tail -n +10 ", dataDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, ".txt | sed 's/-/,/g'")
+    
+    h_cmd = paste0(
+      "tail -n +10 ", 
+      dataDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
+      ".txt | sed 's/-/,/g'"
+    )
+    
     h_lines <- system(h_cmd, intern = T)
-    h_df <- read.table(text=paste(h_lines, collapse = "\n"), header = F, stringsAsFactors = F, sep = ",")
+    h_df <- read.table(
+      text=paste(h_lines, collapse = "\n"), 
+      header = F, 
+      stringsAsFactors = F, 
+      sep = ","
+    )
+    
     for(i in 1:dim(h_df)[1]){
       df_out <- rbind(df_out, c(comp, i, h_df[i,1], h_df[i,2]))
     }
@@ -569,25 +637,43 @@ func_dflm <- function(comp, df_tract, df_diff){
   df_comp <- df_diff[which(df_diff$Comparison == comp),]
   
   # make dataframe
-  subjList <- unique(df_tract[which(df_tract$Group == grpA | df_tract$Group == grpB),]$subjectID)
+  subjList <- unique(
+    df_tract[which(
+      df_tract$Group == grpA | df_tract$Group == grpB
+    ),]$subjectID
+  )
   
   df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
-  colnames(df_lm) <- c("Subj", "AvgFA", "Pars6", "Group", "NeuLGI", "NeuLDI", "NegLGI", "NegLDI")
+  colnames(df_lm) <- c("Subj", "AvgFA", 
+                       "Pars6", "Group", 
+                       "NeuLGI", "NeuLDI", 
+                       "NegLGI", "NegLDI")
   df_lm$Subj <- subjList
   
   for(subj in subjList){
     h_mean <- vector()
     for(i in 1:dim(df_comp)[1]){
-      h_start <- which(df_tract$subjectID == subj & df_tract$nodeID == df_comp[i,]$Start)
-      h_end <- which(df_tract$subjectID == subj & df_tract$nodeID == df_comp[i,]$End)
+      
+      h_start <- which(
+        df_tract$subjectID == subj & 
+        df_tract$nodeID == df_comp[i,]$Start
+      )
+      
+      h_end <- which(
+        df_tract$subjectID == subj & 
+        df_tract$nodeID == df_comp[i,]$End
+      )
+      
       h_mean <- c(h_mean, mean(df_tract[h_start:h_end,]$dti_fa))
     }
+    
     ind_out <- which(df_lm$Subj == subj)
     df_lm[ind_out,]$AvgFA <- round(mean(h_mean), 4)
     
     ind_subj <- which(df_tract$subjectID == subj)[1]
     df_lm[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
-    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_subj,]$Group)-1
+    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_subj,]$Group) - 1
+    
     df_lm[ind_out,]$NeuLGI <- df_tract[ind_subj,]$NeuLGI
     df_lm[ind_out,]$NeuLDI <- df_tract[ind_subj,]$NeuLDI
     df_lm[ind_out,]$NegLGI <- df_tract[ind_subj,]$NegLGI
@@ -604,9 +690,16 @@ func_dflm_max <- function(comp, df_tract, df_max){
   node <- df_max[which(df_max$Comparison == comp),]$Node
   
   # make dataframe
-  subjList <- unique(df_tract[which(df_tract$Group == grpA | df_tract$Group == grpB),]$subjectID)
+  subjList <- unique(
+    df_tract[which(
+      df_tract$Group == grpA | df_tract$Group == grpB
+    ),]$subjectID
+  )
   df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
-  colnames(df_lm) <- c("Subj", "MaxFA", "Pars6", "Group", "NeuLGI", "NeuLDI", "NegLGI", "NegLDI")
+  colnames(df_lm) <- c("Subj", "MaxFA", 
+                       "Pars6", "Group", 
+                       "NeuLGI", "NeuLDI", 
+                       "NegLGI", "NegLDI")
   df_lm$Subj <- subjList
   
   for(subj in subjList){
