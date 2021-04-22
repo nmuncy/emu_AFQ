@@ -189,9 +189,9 @@ func_makeDF <- function(g_type){
   
   # clean NA (from Group skip), write csv
   df_out <- df_afq[complete.cases(df_afq$Group),]
-  # outFile <- paste0(dataDir, "Master_dataframe.csv")
-  # write.csv(df_out, file=outFile, quote=F, row.names = F)
-  return(df_out)
+  outFile <- paste0(dataDir, "Master_dataframe_G", g_type,".csv")
+  write.csv(df_out, file=outFile, quote=F, row.names = F)
+  # return(df_out)
 }
 
 func_memStats <- function(df_afq){
@@ -630,7 +630,7 @@ func_diff <- function(model, tract, outDir, g_type){
   return(df_out)
 }
 
-func_dflm <- function(comp, df_tract, df_diff){
+func_dflm_avg <- function(comp, df_tract, df_diff){
   
   grpA <- as.numeric(substr(comp, start=1, stop=1))
   grpB <- as.numeric(substr(comp, start=2, stop=2))
@@ -643,8 +643,8 @@ func_dflm <- function(comp, df_tract, df_diff){
     ),]$subjectID
   )
   
-  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
-  colnames(df_lm) <- c("Subj", "AvgFA", 
+  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
+  colnames(df_lm) <- c("Comp", "Subj", "FAvalue", 
                        "Pars6", "Group", 
                        "NeuLGI", "NeuLDI", 
                        "NegLGI", "NegLDI")
@@ -668,7 +668,7 @@ func_dflm <- function(comp, df_tract, df_diff){
     }
     
     ind_out <- which(df_lm$Subj == subj)
-    df_lm[ind_out,]$AvgFA <- round(mean(h_mean), 4)
+    df_lm[ind_out,]$FAvalue <- round(mean(h_mean), 4)
     
     ind_subj <- which(df_tract$subjectID == subj)[1]
     df_lm[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
@@ -678,6 +678,8 @@ func_dflm <- function(comp, df_tract, df_diff){
     df_lm[ind_out,]$NeuLDI <- df_tract[ind_subj,]$NeuLDI
     df_lm[ind_out,]$NegLGI <- df_tract[ind_subj,]$NegLGI
     df_lm[ind_out,]$NegLDI <- df_tract[ind_subj,]$NegLDI
+    
+    df_lm[ind_out,]$Comp <- comp
   }
   df_lm$Group <- factor(df_lm$Group)
   return(df_lm)
@@ -695,8 +697,8 @@ func_dflm_max <- function(comp, df_tract, df_max){
       df_tract$Group == grpA | df_tract$Group == grpB
     ),]$subjectID
   )
-  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
-  colnames(df_lm) <- c("Subj", "MaxFA", 
+  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
+  colnames(df_lm) <- c("Comp","Subj", "FAvalue", 
                        "Pars6", "Group", 
                        "NeuLGI", "NeuLDI", 
                        "NegLGI", "NegLDI")
@@ -707,7 +709,8 @@ func_dflm_max <- function(comp, df_tract, df_max){
     ind_data <- which(df_tract$subjectID == subj & df_tract$nodeID == node)
     ind_out <- which(df_lm$Subj == subj)
     
-    df_lm[ind_out,]$MaxFA <- df_tract[ind_data,]$dti_fa
+    df_lm[ind_out,]$Comp <- comp
+    df_lm[ind_out,]$FAvalue <- df_tract[ind_data,]$dti_fa
     df_lm[ind_out,]$Pars6 <- df_tract[ind_data,]$Pars6
     df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_data,]$Group)-1
     df_lm[ind_out,]$NeuLGI <- df_tract[ind_data,]$NeuLGI
@@ -719,78 +722,100 @@ func_dflm_max <- function(comp, df_tract, df_max){
   return(df_lm)
 }
 
+func_lm <- function(df_lm, tract, gType){
+  
+  # no cov
+  fit.int <- lm(NegLGI ~ FAvalue*Group, data = df_lm)
+  
+  capture.output(
+    summary(fit.int), 
+    file = paste0(dataDir, "Stats_LM-Avg_Int_", tract, "_G", gType, ".txt")
+  )
+  capture.output(
+    anova(fit.int), 
+    file = paste0(dataDir, "Stats_AN-Avg_Int_", tract, "_G", gType, ".txt")
+  )
+  
+  ggplot(df_lm) +
+    aes(x=FAvalue, y=NegLGI, shape=Group) +
+    geom_point(aes(color=Group)) +
+    geom_smooth(method = "lm")
+  
+  # # LM with cov?
+  # fit.cov <- lm(NegLGI ~ FAvalue*Group + Pars6, data = df_lm)
+  # capture.output(
+  #   summary(fit.cov), 
+  #   file = paste0(dataDir, "Stats_LM-Cov_Int_", tract, "_G", gType, ".txt")
+  # )
+  # capture.output(
+  #   anova(fit.cov), 
+  #   file = paste0(dataDir, "Stats_AN-Cov_Int_", tract, "_G", gType, ".txt")
+  # )
+}
+
 
 ### Work
-# Two analyses (grouping types):
-#   1) Con vs Anx
-#   2) Con vs GAD vs SAD
+#   Two analyses (grouping types):
+#     1) Con vs Anx
+#     2) Con vs GAD vs SAD
 
-for(gType in 1:2){
+# set lists
+groupType <- 1:2
+tractList <- c("UNC_L", "FA")
 
-  # Make master dataframe
-  df_afq <- func_makeDF(gType)
+for(gType in groupType){
+
+  # make/get data, assign factor
+  dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
+  
+  if( ! file.exists(dataFile)){
+    func_makeDF(gType)
+  }
+  
+  df_afq <- read.csv(dataFile)
   df_afq$Group <- factor(df_afq$Group)
   df_afq$Sex <- factor(df_afq$Sex)
   
   # # Check Memory behavior
   # func_memStats()
   
-  tractList <- c("UNC_L", "FA")  
   for(tract in tractList){
     
-    # subset df_afq
+    # subset df_afq for tract
     df_tract <- df_afq[which(df_afq$tractID == tract), ]
     df_tract$dti_fa <- round(df_tract$dti_fa, 3)
     
     # run gam, plot
-    gam_model <- func_gam(tract, df_tract, dataDir, gType)
+    gamFile <- paste0(dataDir, "G", gType, "_gam_", tract, ".Rda")
+    
+    if( ! file.exists(gamFile)){
+      h_gam <- func_gam(tract, df_tract, dataDir, gType)
+      saveRDS(h_gam, file=gamFile)
+      rm(h_gam)
+    }
+    
+    # determine group differences
+    gam_model <- readRDS(gamFile)
     df_diff <- func_diff(gam_model, tract, dataDir, gType)
-  #   df_max <- func_df_diff(gam_model, gType)
-  #   
-  #   # predict mem score from dti average diff
-  #   df_lm <- func_dflm("01", df_tract, df_diff)
-  #   fit.int <- lm(NegLGI ~ AvgFA*Group, data = df_lm)
-  #   summary(fit.int)
-  #   anova(fit.int)
-  #   
-  #   ggplot(df_lm) +
-  #     aes(x=AvgFA, y=NegLGI, shape=Group) +
-  #     geom_point(aes(color=Group)) +
-  #     geom_smooth(method = "lm")
-  #   
-  #   fit.cov <- lm(NegLGI ~ AvgFA*Group + Pars6, data = df_lm)
-  #   summary(fit.cov)
-  #   anova(fit.cov)
-  #   
-  #   
-  #   # ggplot(df_lm, aes(x=AvgFA, y=NegLGI)) +
-  #   #   geom_point() +
-  #   #   geom_smooth(method = "lm") +
-  #   #   facet_wrap(~ Group)
-  #   
-  #   # df_long <- as.data.frame(matrix(NA, nrow=2*dim(df_lm)[1], ncol=4))
-  #   # colnames(df_long) <- c("Subj", "Group", "Meas", "Value")
-  #   # df_long$Subj <- rep(df_lm$Subj, 2)
-  #   # df_long$Group <- rep(df_lm$Group, 2)
-  #   # df_long$Meas <- c(rep("NegLGI", dim(df_lm)[1]), rep("AvgFA", dim(df_lm)[1]))
-  #   # df_long$Value <- c(df_lm$NegLGI, df_lm$AvgFA)
-  #   
-  #   # predict mem score from dti max diff
-  #   df_lm <- func_dflm_max("01", df_tract, df_max)
-  #   fit.int <- lm(NegLGI ~ MaxFA*Group, data = df_lm)
-  #   summary(fit.int)
-  #   anova(fit.int)
-  #   
-  #   ggplot(df_lm) +
-  #     aes(x=MaxFA, y=NegLGI, shape=Group) +
-  #     geom_point(aes(color=Group)) +
-  #     geom_smooth(method = "lm")
-  #   
-  #   fit.cov <- lm(NegLGI ~ MaxFA*Group + Pars6, data = df_lm)
-  #   summary(fit.cov)
-  #   anova(fit.cov)
+    compList <- unique(df_diff$Comparison)
+    
+    # pairwise lm, since plot_diff does pairwise spline tests
+    for(comp in compList){
+      
+      # predict mem score from dti average diff
+      df_lm <- func_dflm_avg(comp, df_tract, df_diff)
+      func_lm(df_lm, tract, gType)
+      
+      # predict mem score from dti max diff
+      df_lm <- func_dflm_max(comp, df_tract, df_diff)
+      func_lm(df_lm, tract, gType)
+    }
   }
 }
+
+
+
+
 
 
 
