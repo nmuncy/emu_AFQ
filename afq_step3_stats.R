@@ -12,15 +12,23 @@ library("lme4")
 
 
 ### Set Up
-# Orienting vars
+
+# Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_private/"
+plotDir <- paste0(dataDir, "plots/")
+statsDir <- paste0(dataDir, "stats/")
+tableDir <- paste0(dataDir, "tables/")
+
+# set lists
+groupType <- 1:2
+tractList <- c("UNC_L", "FA")
 
 
 # Functions
 func_makeDF <- function(g_type){
   
-  ### --- Notes
+  ### --- Notes:
   #
   # This function will make a master dataframe that
   # contains node FA values, group membership, sex, PDS
@@ -196,7 +204,7 @@ func_makeDF <- function(g_type){
 
 func_memStats <- function(df_afq){
   
-  ### --- Notes
+  ### --- Notes:
   #
   # This function will conduct a
   # WBRM ANOVA on memory measures.
@@ -250,7 +258,7 @@ func_memStats <- function(df_afq){
   )
   
   # write
-  capture.output(stats_LDI, file = paste0(dataDir, "Stats_AN_LDI.txt"))
+  capture.output(stats_LDI, file = paste0(statsDir, "Stats_AN_LDI.txt"))
   
   
   # repeat for LGI
@@ -290,36 +298,46 @@ func_memStats <- function(df_afq){
                        type = "III"
   )
   
-  capture.output(stats_LGI, file = paste0(dataDir, "Stats_AN_LGI.txt"))
+  capture.output(stats_LGI, file = paste0(statsDir, "Stats_AN_LGI.txt"))
 }
 
-func_ggplot_gam <- function(h_df, h_title, outDir, tract, g_type){
+func_ggplot_gam <- function(model, h_title, tract, g_type){
   
-  ggplot(data = h_df) +
+  ### --- Notes:
+  #
+  # Will plot the GAM model of
+  # dti data
+  #
+  # wrapped by func_gam
+  
+  ggplot(data = model) +
     geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
     ggtitle(h_title) +
     ylab("Fit FA")
   
-  ggsave(paste0(outDir, "Plot_GAM_", tract, "_", "G", g_type, ".png"))
+  ggsave(paste0(plotDir, "Plot_GAM_", tract, "_", "G", g_type, ".png"))
 }
 
-func_plot_diff <- function(h_df, outDir, tract, g_type){
+func_plot_diff <- function(model, tract, g_type){
   
   ### --- Notes:
   #
   # This function will determine, plot differences
   # between two splines.
   # The difference values will be returned.
+  #
+  # wrapped by func_diff
+  
   if(g_type == 2){
     
     png(filename = paste0(
-        outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"
+        plotDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"
       ), width = 1800, height = 600
     )
     par(mfrow=c(1,3))
     par(mar=c(5,5,4,2))
     
-    capture.output(plot_diff(h_df,
+    capture.output(plot_diff(model,
                        view="nodeID",
                        comp=list(Group=c("0", "1")),
                        rm.ranef = T,
@@ -330,7 +348,7 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                        cex.axis = 2,
                        cex.main = 2.5,
                        cex.sub = 1.5),
-                   file = paste0(outDir, 
+                   file = paste0(tableDir, 
                                  "Table_Diff_", 
                                  tract, "_", "G", 
                                  g_type, "_01.txt"
@@ -339,7 +357,7 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
     
     par(mar=c(5,3,4,2))
     
-    capture.output(plot_diff(h_df,
+    capture.output(plot_diff(model,
                        view="nodeID",
                        comp=list(Group=c("0", "2")),
                        rm.ranef = T,
@@ -350,14 +368,14 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                        cex.axis = 2,
                        cex.main = 2.5,
                        cex.sub = 2),
-                   file = paste0(outDir, 
+                   file = paste0(tableDir, 
                                  "Table_Diff_", 
                                  tract, "_", "G", 
                                  g_type, "_02.txt"
                                  )
                    )
     
-    capture.output(plot_diff(h_df,
+    capture.output(plot_diff(model,
                              view="nodeID",
                              comp=list(Group=c("1", "2")),
                              rm.ranef = T,
@@ -368,7 +386,7 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                              cex.axis = 2,
                              cex.main = 2.5,
                              cex.sub = 2),
-                   file = paste0(outDir, 
+                   file = paste0(tableDir, 
                                  "Table_Diff_", 
                                  tract, "_", "G", 
                                  g_type, "_12.txt"
@@ -382,11 +400,11 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
   }else if(g_type == 1){
     
     png(filename = paste0(
-      outDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
+      plotDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
       width = 600, height = 600
     )
 
-    capture.output(plot_diff(h_df,
+    capture.output(plot_diff(model,
                              view="nodeID",
                              comp=list(Group=c("0", "1")),
                              rm.ranef = T,
@@ -397,7 +415,7 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
                              cex.axis = 2,
                              cex.main = 2.5,
                              cex.sub = 1.5),
-                   file = paste0(outDir, 
+                   file = paste0(tableDir, 
                                  "Table_Diff_", 
                                  tract, "_", "G",
                                  g_type, "_01.txt"
@@ -409,14 +427,15 @@ func_plot_diff <- function(h_df, outDir, tract, g_type){
   # return(list(p01,p02,p12))
 }
 
-func_df_diff <- function(h_df, g_type){
+func_max_diff <- function(model, g_type){
   
   ### --- Notes:
   #
   # Return node of max diff per contrast
+  
   if(g_type == 2){
     
-    p01 <- plot_diff(h_df,
+    p01 <- plot_diff(model,
                      view="nodeID",
                      comp=list(Group=c("0", "1")),
                      rm.ranef = T,
@@ -424,7 +443,7 @@ func_df_diff <- function(h_df, g_type){
     
     m01 <- p01[which(abs(p01$est) == max(abs(p01$est))),]$nodeID
     
-    p02 <- plot_diff(h_df,
+    p02 <- plot_diff(model,
                      view="nodeID",
                      comp=list(Group=c("0", "2")),
                      rm.ranef = T,
@@ -432,7 +451,7 @@ func_df_diff <- function(h_df, g_type){
     
     m02 <- p02[which(abs(p02$est) == max(abs(p02$est))),]$nodeID
     
-    p12 <- plot_diff(h_df,
+    p12 <- plot_diff(model,
                      view="nodeID",
                      comp=list(Group=c("1", "2")),
                      rm.ranef = T, 
@@ -447,7 +466,7 @@ func_df_diff <- function(h_df, g_type){
     
   }else if(g_type == 1){
     
-    p01 <- plot_diff(h_df,
+    p01 <- plot_diff(model,
                      view="nodeID",
                      comp=list(Group=c("0", "1")),
                      rm.ranef = T,
@@ -464,9 +483,11 @@ func_df_diff <- function(h_df, g_type){
   return(df_out)
 }
 
-func_gam <- function(tract, df_tract, outDir, g_type){
+func_gam <- function(tract, df_tract, g_type){
   
-  ### This function has 3 main steps
+  ### --- Notes:
+  #
+  # This function has 3 main steps
   #
   # 1) Determine best GAM family.
   #   This is based off the distribution of the
@@ -540,7 +561,7 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   # summary(fit_gamma)
   capture.output(
     summary(fit_gamma), 
-    file = paste0(outDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt")
+    file = paste0(statsDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt")
   )
   
   
@@ -559,11 +580,11 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   # Test cov model against gamma
   capture.output(
     compareML(fit_gamma, fit_cov_pds), 
-    file = paste0(outDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt")
+    file = paste0(statsDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt")
   )
   capture.output(
     summary(fit_cov_pds), 
-    file = paste0(outDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt")
+    file = paste0(statsDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt")
   )
   
   # plot
@@ -589,14 +610,17 @@ func_gam <- function(tract, df_tract, outDir, g_type){
   )
   
   plot_title = paste0("GAM Fit of ", h_tract," FA Values")
-  func_ggplot_gam(df_pred, plot_title, outDir, tract, g_type)
+  func_ggplot_gam(df_pred, plot_title, tract, g_type)
   return(fit_cov_pds)
 }
   
-func_diff <- function(model, tract, outDir, g_type){
+func_diff <- function(model, tract, g_type){
   
-  ### Test for differences in GAM splines
-  func_plot_diff(model, outDir, tract, g_type)
+  ### --- Notes:
+  #
+  # Test for differences in GAM splines
+
+  func_plot_diff(model, tract, g_type)
 
   # make table of sig regions
   df_out <- as.data.frame(matrix(NA, nrow=1, ncol=4))
@@ -610,7 +634,7 @@ func_diff <- function(model, tract, outDir, g_type){
     
     h_cmd = paste0(
       "tail -n +10 ", 
-      dataDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
+      tableDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
       ".txt | sed 's/-/,/g'"
     )
     
@@ -631,6 +655,12 @@ func_diff <- function(model, tract, outDir, g_type){
 }
 
 func_dflm_avg <- function(comp, df_tract, df_diff){
+  
+  ### --- Notes:
+  # 
+  # Make a dataframe of averaged FA
+  #   values from all regions that differ
+  #   between two splines
   
   grpA <- as.numeric(substr(comp, start=1, stop=1))
   grpB <- as.numeric(substr(comp, start=2, stop=2))
@@ -687,6 +717,12 @@ func_dflm_avg <- function(comp, df_tract, df_diff){
 
 func_dflm_max <- function(comp, df_tract, df_max){
   
+  ### --- Notes:
+  #
+  # make a dataframe of FA values
+  #   from single region showing showing
+  #   maximal A-B difference
+  
   grpA <- as.numeric(substr(comp, start=1, stop=1))
   grpB <- as.numeric(substr(comp, start=2, stop=2))
   node <- df_max[which(df_max$Comparison == comp),]$Node
@@ -722,35 +758,94 @@ func_dflm_max <- function(comp, df_tract, df_max){
   return(df_lm)
 }
 
-func_lm <- function(df_lm, tract, gType){
+func_lm <- function(df_lm, tract, gType, h_str, comp){
   
-  # no cov
+  ### --- Notes:
+  #
+  # Conduct linear model, test lines
+  # then make plots.
+  
   fit.int <- lm(NegLGI ~ FAvalue*Group, data = df_lm)
   
   capture.output(
     summary(fit.int), 
-    file = paste0(dataDir, "Stats_LM-Avg_Int_", tract, "_G", gType, ".txt")
+    file = paste0(statsDir, 
+                  "Stats_LM-", h_str, "_", tract, "_G", gType, ".txt"
+                  )
   )
   capture.output(
     anova(fit.int), 
-    file = paste0(dataDir, "Stats_AN-Avg_Int_", tract, "_G", gType, ".txt")
+    file = paste0(statsDir, 
+                  "Stats_AN-", h_str, "_", tract, "_G", gType, ".txt"
+                  )
   )
   
-  ggplot(df_lm) +
-    aes(x=FAvalue, y=NegLGI, shape=Group) +
-    geom_point(aes(color=Group)) +
-    geom_smooth(method = "lm")
+  # plot
+  switch_func1 <- function(value){
+    x_col <- switch(
+      value,
+      "0" = "blue",
+      "1" = "darkred",
+    )
+    
+    x_label <- switch(
+      value,
+      "0" = "Con",
+      "1" = "Anx",
+    )
+    return(list(x_col, x_label))
+  }
   
-  # # LM with cov?
-  # fit.cov <- lm(NegLGI ~ FAvalue*Group + Pars6, data = df_lm)
-  # capture.output(
-  #   summary(fit.cov), 
-  #   file = paste0(dataDir, "Stats_LM-Cov_Int_", tract, "_G", gType, ".txt")
-  # )
-  # capture.output(
-  #   anova(fit.cov), 
-  #   file = paste0(dataDir, "Stats_AN-Cov_Int_", tract, "_G", gType, ".txt")
-  # )
+  switch_func2 <- function(value){
+    x_col <- switch(
+      value,
+      "0" = "blue",
+      "1" = "darkred",
+      "2" = "black"
+    )
+    
+    x_label <- switch(
+      value,
+      "0" = "Con",
+      "1" = "GAD",
+      "2" = "SAD"
+    )
+    return(list(x_col, x_label))
+  }
+  
+  comp1 <- substr(comp, start=1, stop=1)
+  comp2 <- substr(comp, start=2, stop=2)
+  
+  if(gType == 1){
+    h_cols = c(switch_func1(comp1)[[1]][1], switch_func1(comp2)[[1]][1])
+    names(h_cols) <- c(comp1, comp2)
+    h_breaks <- c(comp1, comp2)
+    h_labels <- c(switch_func1(comp1)[[2]][1], switch_func1(comp2)[[2]][1])
+    
+  }else if(gType == 2){
+    h_cols = c(switch_func2(comp1)[[1]][1], switch_func2(comp2)[[1]][1])
+    names(h_cols) <- c(comp1, comp2)
+    h_breaks <- c(comp1, comp2)
+    h_labels <- c(switch_func2(comp1)[[2]][1], switch_func2(comp2)[[2]][1])
+  }
+  
+  h_title <- paste0("Memory Index Predicted by ", h_str, " Spline Difference")
+  
+  p <- ggplot(df_lm) +
+    aes(x=FAvalue, y=NegLGI, color=Group) +
+    geom_point(aes(color=Group)) +
+    geom_smooth(method = "lm") +
+    ggtitle(h_title) +
+    ylab("Neg LGI") +
+    xlab("FA value")
+    
+  p + scale_color_manual(
+    values = h_cols,
+    breaks = h_breaks, 
+    labels = h_labels
+  )
+  
+  ggsave(paste0(plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
 }
 
 
@@ -758,11 +853,6 @@ func_lm <- function(df_lm, tract, gType){
 #   Two analyses (grouping types):
 #     1) Con vs Anx
 #     2) Con vs GAD vs SAD
-
-# set lists
-groupType <- 1:2
-tractList <- c("UNC_L", "FA")
-
 for(gType in groupType){
 
   # make/get data, assign factor
@@ -789,14 +879,14 @@ for(gType in groupType){
     gamFile <- paste0(dataDir, "G", gType, "_gam_", tract, ".Rda")
     
     if( ! file.exists(gamFile)){
-      h_gam <- func_gam(tract, df_tract, dataDir, gType)
+      h_gam <- func_gam(tract, df_tract, gType)
       saveRDS(h_gam, file=gamFile)
       rm(h_gam)
     }
     
     # determine group differences
     gam_model <- readRDS(gamFile)
-    df_diff <- func_diff(gam_model, tract, dataDir, gType)
+    df_diff <- func_diff(gam_model, tract, gType)
     compList <- unique(df_diff$Comparison)
     
     # pairwise lm, since plot_diff does pairwise spline tests
@@ -804,25 +894,21 @@ for(gType in groupType){
       
       # predict mem score from dti average diff
       df_lm <- func_dflm_avg(comp, df_tract, df_diff)
-      func_lm(df_lm, tract, gType)
+      func_lm(df_lm, tract, gType, "Avg", comp)
       
       # predict mem score from dti max diff
-      df_lm <- func_dflm_max(comp, df_tract, df_diff)
-      func_lm(df_lm, tract, gType)
+      #   just rerun plot_diff to get table of max diff
+      df_max <- func_max_diff(gam_model, gType)
+      df_lm <- func_dflm_max(comp, df_tract, df_max)
+      func_lm(df_lm, tract, gType, "Max", comp)
     }
   }
 }
 
 
 
-
-
-
-
-
-
-
 # # For working out df construction syntax
+#
 # df_adis <- read.delim(paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T)
 # df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
 # 
