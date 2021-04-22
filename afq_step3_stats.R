@@ -12,7 +12,6 @@ library("lme4")
 
 
 ### Set Up
-
 # Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_private/"
@@ -22,11 +21,11 @@ tableDir <- paste0(dataDir, "tables/")
 
 # set lists
 groupType <- 1:2
-tractList <- c("UNC_L", "FA")
+tractList <- c("UNC_L", "FA", "CST_R")
 
 
 # Functions
-func_makeDF <- function(g_type){
+func_df_master <- function(g_type){
   
   ### --- Notes:
   #
@@ -202,7 +201,7 @@ func_makeDF <- function(g_type){
   # return(df_out)
 }
 
-func_memStats <- function(df_afq){
+func_stat_mem <- function(df_afq){
   
   ### --- Notes:
   #
@@ -301,19 +300,98 @@ func_memStats <- function(df_afq){
   capture.output(stats_LGI, file = paste0(statsDir, "Stats_AN_LGI.txt"))
 }
 
-func_ggplot_gam <- function(model, h_title, tract, g_type){
+func_switch_g1 <- function(value){
+  x_col <- switch(
+    value,
+    "0" = "blue",
+    "1" = "darkred",
+  )
+  
+  x_label <- switch(
+    value,
+    "0" = "Con",
+    "1" = "Anx",
+  )
+  return(list(x_col, x_label))
+}
+
+func_switch_g2 <- function(value){
+  x_col <- switch(
+    value,
+    "0" = "blue",
+    "1" = "darkred",
+    "2" = "black"
+  )
+  
+  x_label <- switch(
+    value,
+    "0" = "Con",
+    "1" = "GAD",
+    "2" = "SAD"
+  )
+  return(list(x_col, x_label))
+}
+
+func_switch_name <- function(tract){
+  x_tract <- switch(
+    tract,
+    "UNC_L" = "L. Uncinate",
+    "FA" = "A. Forceps",
+    "CST_R" = "R. Cortico-spinal Tract",
+  )
+  return(x_tract)
+}
+
+func_plot_gam <- function(model, tract, g_type, df_tract){
   
   ### --- Notes:
   #
   # Will plot the GAM model of
   # dti data
   #
-  # wrapped by func_gam
+  # wrapped by func_stat_gam
   
-  ggplot(data = model) +
+  # plot
+  df_pred <- predict.bam(
+    model,
+    exclude_terms = c("PDS", "Sex", "subjectID"),
+    values=list(PDS = NULL, Sex = NULL),
+    se.fit=T,
+    type="response")
+  
+  df_pred <- data.frame(Group=df_tract$Group,
+                        Sex=df_tract$Sex,
+                        subjectID=df_tract$subjectID,
+                        PDS=df_tract$PDS,
+                        nodeID=df_tract$nodeID,
+                        fit=df_pred$fit,
+                        se.fit=df_pred$se.fit)
+  
+  
+  h_tract <- func_switch_name(tract)
+  h_title = paste0("GAM Fit of ", h_tract," FA Values")
+  
+  if(g_type == 1){
+    h_cols <- c("0" = "blue", "1" = "darkred")
+    h_breaks <- c("0", "1")
+    h_labels <- c("Con", "Anx")
+  }else if(g_type == 2){
+    h_cols <- c("0" = "blue", "1" = "darkred", "2" = "black")
+    h_breaks <- c("0", "1", "2")
+    h_labels <- c("Con", "GAD", "SAD")
+  }
+
+  p <- ggplot(data = df_pred) +
     geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
     ggtitle(h_title) +
-    ylab("Fit FA")
+    ylab("Fit FA") +
+    xlab("Node ID")
+  
+  p + scale_color_manual(
+    values = h_cols,
+    breaks = h_breaks, 
+    labels = h_labels
+  )
   
   ggsave(paste0(plotDir, "Plot_GAM_", tract, "_", "G", g_type, ".png"))
 }
@@ -326,7 +404,7 @@ func_plot_diff <- function(model, tract, g_type){
   # between two splines.
   # The difference values will be returned.
   #
-  # wrapped by func_diff
+  # wrapped by func_stat_diff
   
   if(g_type == 2){
     
@@ -403,7 +481,7 @@ func_plot_diff <- function(model, tract, g_type){
       plotDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
       width = 600, height = 600
     )
-
+    par(mar=c(5,5,4,2))
     capture.output(plot_diff(model,
                              view="nodeID",
                              comp=list(Group=c("0", "1")),
@@ -421,6 +499,7 @@ func_plot_diff <- function(model, tract, g_type){
                                  g_type, "_01.txt"
                                  )
                    )
+    par(mar=c(5,4,4,2))
     dev.off()
   }
   
@@ -483,7 +562,7 @@ func_max_diff <- function(model, g_type){
   return(df_out)
 }
 
-func_gam <- function(tract, df_tract, g_type){
+func_stat_gam <- function(tract, df_tract, g_type){
   
   ### --- Notes:
   #
@@ -561,7 +640,9 @@ func_gam <- function(tract, df_tract, g_type){
   # summary(fit_gamma)
   capture.output(
     summary(fit_gamma), 
-    file = paste0(statsDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt")
+    file = paste0(
+      statsDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt"
+    )
   )
   
   
@@ -580,41 +661,45 @@ func_gam <- function(tract, df_tract, g_type){
   # Test cov model against gamma
   capture.output(
     compareML(fit_gamma, fit_cov_pds), 
-    file = paste0(statsDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt")
+    file = paste0(
+      statsDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt"
+    )
   )
   capture.output(
     summary(fit_cov_pds), 
-    file = paste0(statsDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt")
+    file = paste0(
+      statsDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt"
+    )
   )
   
-  # plot
-  df_pred <- predict.bam(
-    fit_cov_pds,
-    exclude_terms = c("PDS", "Sex","subjectID"),
-    values=list(PDS = NULL, Sex = NULL),
-    se.fit=T,
-    type="response")
-  
-  df_pred <- data.frame(Group=df_tract$Group,
-                        Sex=df_tract$Sex,
-                        subjectID=df_tract$subjectID,
-                        PDS=df_tract$PDS,
-                        nodeID=df_tract$nodeID,
-                        fit=df_pred$fit,
-                        se.fit=df_pred$se.fit)
-  
-  h_tract <- switch(
-    tract,
-    "UNC_L" = "L. Uncinate",
-    "FA" = "A. Forceps"
-  )
-  
-  plot_title = paste0("GAM Fit of ", h_tract," FA Values")
-  func_ggplot_gam(df_pred, plot_title, tract, g_type)
+  # # plot
+  # df_pred <- predict.bam(
+  #   fit_cov_pds,
+  #   exclude_terms = c("PDS", "Sex","subjectID"),
+  #   values=list(PDS = NULL, Sex = NULL),
+  #   se.fit=T,
+  #   type="response")
+  # 
+  # df_pred <- data.frame(Group=df_tract$Group,
+  #                       Sex=df_tract$Sex,
+  #                       subjectID=df_tract$subjectID,
+  #                       PDS=df_tract$PDS,
+  #                       nodeID=df_tract$nodeID,
+  #                       fit=df_pred$fit,
+  #                       se.fit=df_pred$se.fit)
+  # 
+  # h_tract <- switch(
+  #   tract,
+  #   "UNC_L" = "L. Uncinate",
+  #   "FA" = "A. Forceps"
+  # )
+  # 
+  # plot_title = paste0("GAM Fit of ", h_tract," FA Values")
+  # func_plot_gam(df_pred, plot_title, tract, g_type)
   return(fit_cov_pds)
 }
   
-func_diff <- function(model, tract, g_type){
+func_stat_diff <- function(model, tract, g_type){
   
   ### --- Notes:
   #
@@ -654,7 +739,7 @@ func_diff <- function(model, tract, g_type){
   return(df_out)
 }
 
-func_dflm_avg <- function(comp, df_tract, df_diff){
+func_df_avg <- function(comp, df_tract, df_diff){
   
   ### --- Notes:
   # 
@@ -715,7 +800,7 @@ func_dflm_avg <- function(comp, df_tract, df_diff){
   return(df_lm)
 }
 
-func_dflm_max <- function(comp, df_tract, df_max){
+func_df_max <- function(comp, df_tract, df_max){
   
   ### --- Notes:
   #
@@ -758,7 +843,7 @@ func_dflm_max <- function(comp, df_tract, df_max){
   return(df_lm)
 }
 
-func_lm <- function(df_lm, tract, gType, h_str, comp){
+func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
   
   ### --- Notes:
   #
@@ -781,55 +866,25 @@ func_lm <- function(df_lm, tract, gType, h_str, comp){
   )
   
   # plot
-  switch_func1 <- function(value){
-    x_col <- switch(
-      value,
-      "0" = "blue",
-      "1" = "darkred",
-    )
-    
-    x_label <- switch(
-      value,
-      "0" = "Con",
-      "1" = "Anx",
-    )
-    return(list(x_col, x_label))
-  }
-  
-  switch_func2 <- function(value){
-    x_col <- switch(
-      value,
-      "0" = "blue",
-      "1" = "darkred",
-      "2" = "black"
-    )
-    
-    x_label <- switch(
-      value,
-      "0" = "Con",
-      "1" = "GAD",
-      "2" = "SAD"
-    )
-    return(list(x_col, x_label))
-  }
-  
   comp1 <- substr(comp, start=1, stop=1)
   comp2 <- substr(comp, start=2, stop=2)
   
   if(gType == 1){
-    h_cols = c(switch_func1(comp1)[[1]][1], switch_func1(comp2)[[1]][1])
+    h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
     names(h_cols) <- c(comp1, comp2)
     h_breaks <- c(comp1, comp2)
-    h_labels <- c(switch_func1(comp1)[[2]][1], switch_func1(comp2)[[2]][1])
+    h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
     
   }else if(gType == 2){
-    h_cols = c(switch_func2(comp1)[[1]][1], switch_func2(comp2)[[1]][1])
+    h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
     names(h_cols) <- c(comp1, comp2)
     h_breaks <- c(comp1, comp2)
-    h_labels <- c(switch_func2(comp1)[[2]][1], switch_func2(comp2)[[2]][1])
+    h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
   }
   
-  h_title <- paste0("Memory Index Predicted by ", h_str, " Spline Difference")
+  h_tract <- func_switch_name(tract)
+  h_insert <- paste(h_str, h_tract)
+  h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
   
   p <- ggplot(df_lm) +
     aes(x=FAvalue, y=NegLGI, color=Group) +
@@ -859,7 +914,7 @@ for(gType in groupType){
   dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
   
   if( ! file.exists(dataFile)){
-    func_makeDF(gType)
+    func_df_master(gType)
   }
   
   df_afq <- read.csv(dataFile)
@@ -867,7 +922,7 @@ for(gType in groupType){
   df_afq$Sex <- factor(df_afq$Sex)
   
   # # Check Memory behavior
-  # func_memStats()
+  # func_stat_mem()
   
   for(tract in tractList){
     
@@ -879,28 +934,30 @@ for(gType in groupType){
     gamFile <- paste0(dataDir, "G", gType, "_gam_", tract, ".Rda")
     
     if( ! file.exists(gamFile)){
-      h_gam <- func_gam(tract, df_tract, gType)
+      h_gam <- func_stat_gam(tract, df_tract, gType)
       saveRDS(h_gam, file=gamFile)
       rm(h_gam)
     }
     
-    # determine group differences
     gam_model <- readRDS(gamFile)
-    df_diff <- func_diff(gam_model, tract, gType)
+    func_plot_gam(gam_model, tract, gType, df_tract)
+    
+    # determine group differences
+    df_diff <- func_stat_diff(gam_model, tract, gType)
     compList <- unique(df_diff$Comparison)
     
     # pairwise lm, since plot_diff does pairwise spline tests
     for(comp in compList){
       
       # predict mem score from dti average diff
-      df_lm <- func_dflm_avg(comp, df_tract, df_diff)
-      func_lm(df_lm, tract, gType, "Avg", comp)
+      df_lm <- func_df_avg(comp, df_tract, df_diff)
+      func_stat_lm(df_lm, tract, gType, "Avg", comp)
       
       # predict mem score from dti max diff
       #   just rerun plot_diff to get table of max diff
       df_max <- func_max_diff(gam_model, gType)
-      df_lm <- func_dflm_max(comp, df_tract, df_max)
-      func_lm(df_lm, tract, gType, "Max", comp)
+      df_lm <- func_df_max(comp, df_tract, df_max)
+      func_stat_lm(df_lm, tract, gType, "Max", comp)
     }
   }
 }
