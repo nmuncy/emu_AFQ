@@ -21,7 +21,7 @@ tableDir <- paste0(dataDir, "tables/")
 
 # set lists
 groupType <- 1:2
-tractList <- c("UNC_L", "FA", "CST_R")
+tractList <- c("UNC_L", "UNC_R", "FA")
 
 
 # Functions
@@ -336,6 +336,7 @@ func_switch_name <- function(tract){
   x_tract <- switch(
     tract,
     "UNC_L" = "L. Uncinate",
+    "UNC_R" = "R. Uncinate",
     "FA" = "A. Forceps",
     "CST_R" = "R. Cortico-spinal Tract",
   )
@@ -865,42 +866,85 @@ func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
                   )
   )
   
-  # plot
-  comp1 <- substr(comp, start=1, stop=1)
-  comp2 <- substr(comp, start=2, stop=2)
+  # plot if group diff
+  anova_stat <- anova(fit.int)
+  if(anova_stat$`Pr(>F)`[2] < 0.05){
   
-  if(gType == 1){
-    h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
-    names(h_cols) <- c(comp1, comp2)
-    h_breaks <- c(comp1, comp2)
-    h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
+    comp1 <- substr(comp, start=1, stop=1)
+    comp2 <- substr(comp, start=2, stop=2)
     
-  }else if(gType == 2){
-    h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
-    names(h_cols) <- c(comp1, comp2)
-    h_breaks <- c(comp1, comp2)
-    h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
+    if(gType == 1){
+      h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
+      names(h_cols) <- c(comp1, comp2)
+      h_breaks <- c(comp1, comp2)
+      h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
+      
+    }else if(gType == 2){
+      h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
+      names(h_cols) <- c(comp1, comp2)
+      h_breaks <- c(comp1, comp2)
+      h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
+    }
+    
+    h_tract <- func_switch_name(tract)
+    # h_insert <- paste(h_str, h_tract)
+    # h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
+    
+    # p <- ggplot(df_lm) +
+    #   aes(x=FAvalue, y=NegLGI, color=Group) +
+    #   geom_point(aes(color=Group)) +
+    #   geom_smooth(method = "lm") +
+    #   ggtitle(h_title) +
+    #   ylab("Neg LGI") +
+    #   xlab("FA value")
+    #   
+    # p + scale_color_manual(
+    #   values = h_cols,
+    #   breaks = h_breaks, 
+    #   labels = h_labels
+    # )
+    # 
+    # ggsave(paste0(plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
+    
+    # --- update, plot separately
+    plot1.x <- df_lm[which(df_lm$Group == comp1),]$FAvalue
+    plot1.y <- df_lm[which(df_lm$Group == comp1),]$NegLGI
+    
+    plot2.x <- df_lm[which(df_lm$Group == comp2),]$FAvalue
+    plot2.y <- df_lm[which(df_lm$Group == comp2),]$NegLGI
+    
+    h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
+    x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
+    
+    png(filename = paste0(
+        plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, ".png"
+      ),
+      width = 8,
+      height = 4,
+      units = "in",
+      res = 600
+    )
+    
+    par(mfrow=c(1,2), oma=c(0,0,2,0), family="Times New Roman")
+    
+    plot(plot1.x, plot1.y, 
+         xlab = x_title, 
+         ylab = "Neg LGI", 
+         ylim = c(min(df_lm$NegLGI), max(df_lm$NegLGI)),
+         main = h_labels[1])
+    abline(lm(plot1.y ~ plot1.x))
+    
+    plot(plot2.x, plot2.y, 
+         xlab = x_title, 
+         ylab = "",
+         main = h_labels[2], 
+         ylim = c(min(df_lm$NegLGI), max(df_lm$NegLGI)))
+    abline(lm(plot2.y ~ plot2.x))
+    
+    mtext(h_title, outer = T, cex = 1.5)
+    dev.off()
+    par(mfrow=c(1,1))
   }
-  
-  h_tract <- func_switch_name(tract)
-  h_insert <- paste(h_str, h_tract)
-  h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
-  
-  p <- ggplot(df_lm) +
-    aes(x=FAvalue, y=NegLGI, color=Group) +
-    geom_point(aes(color=Group)) +
-    geom_smooth(method = "lm") +
-    ggtitle(h_title) +
-    ylab("Neg LGI") +
-    xlab("FA value")
-    
-  p + scale_color_manual(
-    values = h_cols,
-    breaks = h_breaks, 
-    labels = h_labels
-  )
-  
-  ggsave(paste0(plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
 }
 
 
