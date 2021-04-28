@@ -15,8 +15,10 @@ library("lme4")
 # Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_private/"
-plotDir <- paste0(dataDir, "plots/")
-statsDir <- paste0(dataDir, "stats/")
+plotDir_gam <- paste0(dataDir, "plots_gam/")
+statsDir_gam <- paste0(dataDir, "stats_gam/")
+plotDir_lm <- paste0(dataDir, "plots_lm/")
+statsDir_lm <- paste0(dataDir, "stats_lm/")
 tableDir <- paste0(dataDir, "tables/")
 
 # set lists
@@ -257,7 +259,7 @@ func_stat_mem <- function(df_afq){
   )
   
   # write
-  capture.output(stats_LDI, file = paste0(statsDir, "Stats_AN_LDI.txt"))
+  capture.output(stats_LDI, file = paste0(statsDir_gam, "Stats_AN_LDI.txt"))
   
   
   # repeat for LGI
@@ -297,7 +299,7 @@ func_stat_mem <- function(df_afq){
                        type = "III"
   )
   
-  capture.output(stats_LGI, file = paste0(statsDir, "Stats_AN_LGI.txt"))
+  capture.output(stats_LGI, file = paste0(statsDir_gam, "Stats_AN_LGI.txt"))
 }
 
 func_switch_g1 <- function(value){
@@ -394,7 +396,7 @@ func_plot_gam <- function(model, tract, g_type, df_tract){
     labels = h_labels
   )
   
-  ggsave(paste0(plotDir, "Plot_GAM_", tract, "_", "G", g_type, ".png"))
+  ggsave(paste0(plotDir_gam, "Plot_GAM_", tract, "_", "G", g_type, ".png"))
 }
 
 func_plot_diff <- function(model, tract, g_type){
@@ -410,7 +412,7 @@ func_plot_diff <- function(model, tract, g_type){
   if(g_type == 2){
     
     png(filename = paste0(
-        plotDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"
+        plotDir_gam, "Plot_Diff_", tract, "_", "G", g_type, ".png"
       ), width = 1800, height = 600
     )
     par(mfrow=c(1,3))
@@ -479,7 +481,7 @@ func_plot_diff <- function(model, tract, g_type){
   }else if(g_type == 1){
     
     png(filename = paste0(
-      plotDir, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
+      plotDir_gam, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
       width = 600, height = 600
     )
     par(mar=c(5,5,4,2))
@@ -642,7 +644,7 @@ func_stat_gam <- function(tract, df_tract, g_type){
   capture.output(
     summary(fit_gamma), 
     file = paste0(
-      statsDir, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt"
+      statsDir_gam, "Stats_GAM-gamma_", tract, "_", "G", g_type, ".txt"
     )
   )
   
@@ -663,13 +665,13 @@ func_stat_gam <- function(tract, df_tract, g_type){
   capture.output(
     compareML(fit_gamma, fit_cov_pds), 
     file = paste0(
-      statsDir, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt"
+      statsDir_gam, "Stats_GAM-comp_", tract, "_", "G", g_type, ".txt"
     )
   )
   capture.output(
     summary(fit_cov_pds), 
     file = paste0(
-      statsDir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt"
+      statsDir_gam, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt"
     )
   )
   
@@ -855,13 +857,13 @@ func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
   
   capture.output(
     summary(fit.int), 
-    file = paste0(statsDir, 
+    file = paste0(statsDir_lm, 
                   "Stats_LM-", h_str, "_", tract, "_G", gType, ".txt"
                   )
   )
   capture.output(
     anova(fit.int), 
-    file = paste0(statsDir, 
+    file = paste0(statsDir_lm, 
                   "Stats_AN-", h_str, "_", tract, "_G", gType, ".txt"
                   )
   )
@@ -904,7 +906,7 @@ func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
     #   labels = h_labels
     # )
     # 
-    # ggsave(paste0(plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
+    # ggsave(paste0(plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
     
     # --- update, plot separately
     plot1.x <- df_lm[which(df_lm$Group == comp1),]$FAvalue
@@ -917,7 +919,7 @@ func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
     x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
     
     png(filename = paste0(
-        plotDir, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, ".png"
+        plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, ".png"
       ),
       width = 8,
       height = 4,
@@ -944,6 +946,128 @@ func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
     mtext(h_title, outer = T, cex = 1.5)
     dev.off()
     par(mfrow=c(1,1))
+  }
+}
+
+func_stat_lm_new <- function(df_lm, tract, gType, h_str, comp){
+  
+  ### --- Notes:
+  #
+  # Conduct linear model, test lines
+  # then make plots.
+  
+  # "NeuLGI", "NeuLDI", 
+  memList <- c("NegLGI", "NegLDI")
+  
+  for(mem in memList){
+    
+    ind_mem <- grep(mem, colnames(df_lm))
+    
+    df_mem <- as.data.frame(matrix(NA, nrow = dim(df_lm)[1], ncol=4))
+    colnames(df_mem) <- c("Comp", "FAvalue", "Group", "MemScore")
+    
+    df_mem$Comp <- df_lm$Comp
+    df_mem$FAvalue <- df_lm$FAvalue
+    df_mem$Group <- df_lm$Group
+    df_mem$MemScore <- df_lm[,ind_mem]
+    
+    fit.int <- lm(MemScore ~ FAvalue*Group, data = df_mem)
+    
+    capture.output(
+      summary(fit.int),
+      file = paste0(statsDir_lm,
+        "Stats_LM-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".txt"
+      )
+    )
+    capture.output(
+      anova(fit.int),
+      file = paste0(statsDir_lm,
+        "Stats_AN-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".txt"
+      )
+    )
+    
+    # plot if group diff
+    # anova_stat <- anova(fit.int)
+    # if(anova_stat$`Pr(>F)`[2] < 0.05){
+      
+      comp1 <- substr(comp, start=1, stop=1)
+      comp2 <- substr(comp, start=2, stop=2)
+      
+      if(gType == 1){
+        h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
+        names(h_cols) <- c(comp1, comp2)
+        h_breaks <- c(comp1, comp2)
+        h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
+        
+      }else if(gType == 2){
+        h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
+        names(h_cols) <- c(comp1, comp2)
+        h_breaks <- c(comp1, comp2)
+        h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
+      }
+      
+      h_tract <- func_switch_name(tract)
+      # h_insert <- paste(h_str, h_tract)
+      # h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
+      
+      # p <- ggplot(df_lm) +
+      #   aes(x=FAvalue, y=NegLGI, color=Group) +
+      #   geom_point(aes(color=Group)) +
+      #   geom_smooth(method = "lm") +
+      #   ggtitle(h_title) +
+      #   ylab("Neg LGI") +
+      #   xlab("FA value")
+      #   
+      # p + scale_color_manual(
+      #   values = h_cols,
+      #   breaks = h_breaks, 
+      #   labels = h_labels
+      # )
+      # 
+      # ggsave(paste0(plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
+      
+      # --- update, plot separately
+      plot1.x <- df_mem[which(df_mem$Group == comp1),]$FAvalue
+      plot1.y <- df_mem[which(df_mem$Group == comp1),]$MemScore
+      
+      plot2.x <- df_mem[which(df_mem$Group == comp2),]$FAvalue
+      plot2.y <- df_mem[which(df_mem$Group == comp2),]$MemScore
+      
+      h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
+      x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
+      
+      png(filename = paste0(
+          plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".png"
+        ),
+        width = 8,
+        height = 4,
+        units = "in",
+        res = 600
+      )
+      
+      par(mfrow=c(1,2), 
+          oma=c(0,0,2,0), 
+          family="Times New Roman"
+        )
+      
+      plot(plot1.x, plot1.y, 
+           xlab = x_title, 
+           ylab = mem, 
+           ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)),
+           main = h_labels[1])
+      abline(lm(plot1.y ~ plot1.x))
+      
+      plot(plot2.x, plot2.y, 
+           xlab = x_title, 
+           ylab = "",
+           main = h_labels[2], 
+           ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)))
+      abline(lm(plot2.y ~ plot2.x))
+      
+      mtext(h_title, outer = T, cex = 1.5)
+      dev.off()
+      par(mfrow=c(1,1))
+    # }
   }
 }
 
@@ -995,13 +1119,15 @@ for(gType in groupType){
       
       # predict mem score from dti average diff
       df_lm <- func_df_avg(comp, df_tract, df_diff)
-      func_stat_lm(df_lm, tract, gType, "Avg", comp)
+      # func_stat_lm(df_lm, tract, gType, "Avg", comp)
+      func_stat_lm_new(df_lm, tract, gType, "Avg", comp)
       
       # predict mem score from dti max diff
       #   just rerun plot_diff to get table of max diff
       df_max <- func_max_diff(gam_model, gType)
       df_lm <- func_df_max(comp, df_tract, df_max)
-      func_stat_lm(df_lm, tract, gType, "Max", comp)
+      # func_stat_lm(df_lm, tract, gType, "Max", comp)
+      func_stat_lm_new(df_lm, tract, gType, "Max", comp)
     }
   }
 }
