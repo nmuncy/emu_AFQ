@@ -11,6 +11,15 @@ library("dplyr")
 library("lme4")
 
 
+### TODO:
+#
+# 1) Combine plot_diff functions
+#
+# 2) find group diffs from plot_diff when
+#     group n=3
+
+
+
 ### Set Up
 # Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
@@ -20,6 +29,7 @@ statsDir_gam <- paste0(dataDir, "stats_gam/")
 plotDir_lm <- paste0(dataDir, "plots_lm/")
 statsDir_lm <- paste0(dataDir, "stats_lm/")
 tableDir <- paste0(dataDir, "tables/")
+
 
 # set lists
 groupType <- 1:2
@@ -303,6 +313,12 @@ func_stat_mem <- function(df_afq){
 }
 
 func_switch_g1 <- function(value){
+  
+  ### --- Notes:
+  #
+  # Switch for determining group, coloring
+  #   for grouping set 1
+  
   x_col <- switch(
     value,
     "0" = "blue",
@@ -318,6 +334,12 @@ func_switch_g1 <- function(value){
 }
 
 func_switch_g2 <- function(value){
+  
+  ### --- Notes:
+  #
+  # Switch for determining group, coloring
+  #   for grouping set 2
+  
   x_col <- switch(
     value,
     "0" = "blue",
@@ -335,12 +357,17 @@ func_switch_g2 <- function(value){
 }
 
 func_switch_name <- function(tract){
+  
+  ### --- Notes:
+  #
+  # Switch for determining name
+  #   of tracts
+  
   x_tract <- switch(
     tract,
     "UNC_L" = "L. Uncinate",
     "UNC_R" = "R. Uncinate",
     "FA" = "A. Forceps",
-    "CST_R" = "R. Cortico-spinal Tract",
   )
   return(x_tract)
 }
@@ -405,7 +432,8 @@ func_plot_diff <- function(model, tract, g_type){
   #
   # This function will determine, plot differences
   # between two splines.
-  # The difference values will be returned.
+  #
+  # A table of significant nodes is written.
   #
   # wrapped by func_stat_diff
   
@@ -720,6 +748,7 @@ func_stat_diff <- function(model, tract, g_type){
   }
   for(comp in compList){
     
+    # get table made by func_plot_diff
     h_cmd = paste0(
       "tail -n +10 ", 
       tableDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
@@ -1070,6 +1099,250 @@ func_stat_lm_new <- function(df_lm, tract, gType, h_str, comp){
     # }
   }
 }
+
+
+
+func_plot_diff1 <- function(model, tract){
+  
+  ### --- Notes:
+  #
+  # This will draw plots and write tables of sig
+  #   node differences for GAM when group style=1
+  
+  png(filename = paste0(
+    plotDir_gam, "Plot_Diff_", tract, "_", "G", g_type, ".png"), 
+    width = 600, height = 600
+  )
+  
+  gA <- func_switch_g1("0")[[2]][1]
+  gB <- func_switch_g1("1")[[2]][1]
+  
+  par(mar=c(5,5,4,2))
+  capture.output(plot_diff(model,
+                           view="nodeID",
+                           comp=list(Group=c("0", "1")),
+                           rm.ranef = T,
+                           main = paste0("Difference Scores, ", gA, "-", gB),
+                           ylab = "Est. FA difference",
+                           xlab = "Tract Node",
+                           cex.lab = 2,
+                           cex.axis = 2,
+                           cex.main = 2.5,
+                           cex.sub = 1.5),
+                 file = paste0(tableDir, 
+                               "Table_Diff_", 
+                               tract, "_", "G",
+                               g_type, "_01.txt"
+                 )
+  )
+  par(mar=c(5,4,4,2))
+  dev.off()
+}
+
+func_plot_diff2 <- function(model, tract){
+  
+  ### --- Notes:
+  #
+  # This will draw plots and write tables of sig
+  #   node differences for GAM when group style=2
+  
+  png(filename = paste0(
+      plotDir_gam, "Plot_Diff_", tract, "_", "G", g_type, ".png"
+    ), width = 1800, height = 600
+  )
+  
+  gA <- func_switch_g2("0")[[2]][1]
+  gB <- func_switch_g2("1")[[2]][1]
+  gC <- func_switch_g2("2")[[2]][1]
+  
+  par(mfrow=c(1,3), mar=c(5,5,4,2))
+  capture.output(plot_diff(model,
+                           view="nodeID",
+                           comp=list(Group=c("0", "1")),
+                           rm.ranef = T,
+                           main = paste0("Difference Scores, ", gA, "-", gB),
+                           ylab = "Est. FA difference",
+                           xlab = "Tract Node",
+                           cex.lab = 2,
+                           cex.axis = 2,
+                           cex.main = 2.5,
+                           cex.sub = 1.5),
+                 file = paste0(tableDir, 
+                               "Table_Diff_", 
+                               tract, "_", "G", 
+                               g_type, "_01.txt"
+                 )
+  )
+  
+  par(mar=c(5,3,4,2))
+  capture.output(plot_diff(model,
+                           view="nodeID",
+                           comp=list(Group=c("0", "2")),
+                           rm.ranef = T,
+                           main = paste0("Difference Scores, ", gA, "-", gC),
+                           ylab = "",
+                           xlab = "Tract Node",
+                           cex.lab = 2,
+                           cex.axis = 2,
+                           cex.main = 2.5,
+                           cex.sub = 2),
+                 file = paste0(tableDir, 
+                               "Table_Diff_", 
+                               tract, "_", "G", 
+                               g_type, "_02.txt"
+                 )
+  )
+  
+  capture.output(plot_diff(model,
+                           view="nodeID",
+                           comp=list(Group=c("1", "2")),
+                           rm.ranef = T,
+                           main = paste0("Difference Scores, ", gB, "-", gC),
+                           ylab = "",
+                           xlab = "Tract Node",
+                           cex.lab = 2,
+                           cex.axis = 2,
+                           cex.main = 2.5,
+                           cex.sub = 2),
+                 file = paste0(tableDir, 
+                               "Table_Diff_", 
+                               tract, "_", "G", 
+                               g_type, "_12.txt"
+                 )
+  )
+  par(mfrow=c(1,1), mar=c(5,4,4,2))
+  dev.off()
+}
+
+func_mkdf_diff1 <- function(model){
+  
+  ### --- Notes:
+  #
+  # Returns a dataframe of difference
+  #   scores for each node.
+  
+  p01 <- plot_diff(model,
+                   view="nodeID",
+                   comp=list(Group=c("0", "1")),
+                   rm.ranef = T,
+                   plot = F)
+  
+  colnames(p01) <- c(colnames(p01[,1:4]), "Comp")
+  p01$Comp <- "01"
+  return(p01)
+}
+
+func_mkdf_diff2 <- function(model){
+  
+  ### --- Notes:
+  #
+  # Returns a dataframe of difference
+  #   scores for each node.
+  
+  p01 <- plot_diff(model,
+                   view="nodeID",
+                   comp=list(Group=c("0", "1")),
+                   rm.ranef = T,
+                   plot = F)
+  colnames(p01) <- c(colnames(p01[,1:4]), "Comp")
+  p01$Comp <- "01"
+  
+  p02 <- plot_diff(model,
+                   view="nodeID",
+                   comp=list(Group=c("0", "2")),
+                   rm.ranef = T,
+                   plot = F)
+  colnames(p02) <- c(colnames(p02[,1:4]), "Comp")
+  p02$Comp <- "02"
+  
+  p12 <- plot_diff(model,
+                   view="nodeID",
+                   comp=list(Group=c("1", "2")),
+                   rm.ranef = T, 
+                   plot = F)
+  colnames(p12) <- c(colnames(p12[,1:4]), "Comp")
+  p12$Comp <- "12"
+  
+  df_out <- as.data.frame(matrix(NA, nrow=3*dim(p01)[1], ncol=dim(p01)[2]))
+  colnames(df_out) <- colnames(p01)
+  df_out <- rbind(p01, p02, p12)
+  return(df_out)
+}
+
+
+func_stat_diff_new <- function(model, tract, g_type){
+  
+  # 1) func_plot_diff
+  #     make plots, write tables
+  #     determine diff nodes
+  #
+  # 2) func_max_diff
+  #     make dataframes
+  #
+  # 3) determine nodes where groups differ
+  #     return df_diff.
+  #     Account for 2/3 groups
+  
+  ## Step 1 - make plots and tables
+  if(g_type == 1){
+    func_plot_diff1(model, tract)
+  }else if(g_type == 2){
+    func_plot_diff2(model, tract)
+  }
+  
+  # use tables to get sig nodes, save in df_nodeDiff
+  df_nodeDiff <- as.data.frame(matrix(NA, nrow=1, ncol=4))
+  colnames(df_nodeDiff) <- c("Comparison", "Section", "Start", "End")
+  
+  if(g_type == 1){
+    compList <- "01"
+  }else if(g_type == 2){
+    compList <- c("01", "02", "12")
+  }
+  
+  # get table made by func_plot_diff for e/comparison
+  for(comp in compList){
+    
+    # write, use bash
+    h_cmd = paste0(
+      "tail -n +10 ", 
+      tableDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
+      ".txt | sed 's/-/,/g'"
+    )
+    h_lines <- system(h_cmd, intern = T)
+    
+    # make df
+    h_df <- read.table(
+      text=paste(h_lines, collapse = "\n"), 
+      header = F, 
+      stringsAsFactors = F, 
+      sep = ","
+    )
+    
+    # write to df_nodeDiff
+    for(i in 1:dim(h_df)[1]){
+      df_nodeDiff <- rbind(df_nodeDiff, c(comp, i, h_df[i,1], h_df[i,2]))
+    }
+  }
+  df_nodeDiff <- na.omit(df_nodeDiff)
+  
+  
+  ## Step 2 - get plot_diff dataframes
+  if(g_type == 1){
+    df_estDiff <- func_mkdf_diff1(model)
+  }else if(g_type == 2){
+    df_estDiff <- func_mkdf_diff2(model)
+  }
+  
+  
+  ## Step 3 - for grouping 2, determine
+  #   intx nodes
+  nodeList <- unique(df_allDiff$nodeID)
+  
+  
+  
+}
+
 
 
 ### Work
