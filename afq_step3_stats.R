@@ -1336,8 +1336,7 @@ func_stat_diff_new <- function(model, tract, g_type){
   
   
   ## Step 3 - for grouping 2, determine
-  #   nodes where all groups differ from
-  #   e/o (diff)
+  #   nodes where all groups differ from e/o
   nodeList <- unique(df_estDiff$nodeID)
   diffList <- vector()
   for(node in nodeList){
@@ -1358,16 +1357,23 @@ func_stat_diff_new <- function(model, tract, g_type){
   }
   
   # find max diff
-  maxList <- vector()
   if(g_type == 1){
-    ind_max <- max(abs(df_estDiff[which(df_estDiff$nodeID == diffList),]$est))
+    
+    h_df <- subset(df_estDiff, nodeID %in% diffList)
+    ind_max <- which(abs(h_df$est) == max(abs(h_df$est)))
+    node_max <- h_df[ind_max,]$nodeID
+    
   }else if(g_type == 2){
-    sapply(diffList, )
+    f_sum <- function(x){
+      sum(abs(df_estDiff[which(df_estDiff$nodeID == x),]$est))
+    }
+    h_sum <- sapply(diffList, f_sum)
+    names(h_sum) <- diffList
+    h_max <- which(h_sum == max(h_sum))
+    node_max <- as.numeric(names(h_sum[h_max]))
   }
   
-  
-  
-  
+  return(list(diffList, node_max))
 }
 
 
