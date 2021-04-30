@@ -36,7 +36,7 @@ groupType <- 1:2
 tractList <- c("UNC_L", "UNC_R", "FA")
 
 
-# Functions
+# Functions - general
 func_df_master <- function(g_type){
   
   ### --- Notes:
@@ -372,6 +372,8 @@ func_switch_name <- function(tract){
   return(x_tract)
 }
 
+
+# Functions - GAM
 func_plot_gam <- function(model, tract, g_type, df_tract){
   
   ### --- Notes:
@@ -771,6 +773,8 @@ func_stat_diff <- function(model, tract, g_type){
   return(df_out)
 }
 
+
+# Functions - LM
 func_df_avg <- function(comp, df_tract, df_diff){
   
   ### --- Notes:
@@ -1268,7 +1272,6 @@ func_mkdf_diff2 <- function(model){
   df_out <- rbind(p01, p02, p12)
   return(df_out)
 }
-
 
 func_stat_diff_new <- function(model, tract, g_type){
   
