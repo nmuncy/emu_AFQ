@@ -11,19 +11,12 @@ library("dplyr")
 library("lme4")
 
 
-### TODO:
-#
-# 1) Combine plot_diff functions
-#
-# 2) find group diffs from plot_diff when
-#     group n=3
-
-
 
 ### Set Up
 # Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_private/"
+
 plotDir_gam <- paste0(dataDir, "plots_gam/")
 statsDir_gam <- paste0(dataDir, "stats_gam/")
 plotDir_lm <- paste0(dataDir, "plots_lm/")
@@ -811,6 +804,11 @@ func_stat_diff <- function(model, tract, gType){
     }
   }
   
+  if(length(diffList) == 0){
+    return(NA)
+    stop
+  }
+  
   # find max diff
   if(gType == 1){
     
@@ -834,6 +832,12 @@ func_stat_diff <- function(model, tract, gType){
 
 # Functions - LM
 func_mkdf_lm <- function(df_tract, node_list, gType, avg_max){
+  
+  ### --- Notes:
+  #
+  # Returns a dataframe for linear models
+  #   with either average FA or max FA 
+  #   difference
   
   subjList <- unique(df_tract$subjectID)
   df_out <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=8))
@@ -864,15 +868,132 @@ func_mkdf_lm <- function(df_tract, node_list, gType, avg_max){
   return(df_out)
 }
 
+func_plot_lm1 <- function(df_plot, avg_max, mem){
+  
+  ### --- Notes:
+  #
+  # Plots A and B
+  
+  # plot if group diff
+  h_labels <- c(func_switch_g1("0")[[2]][1], func_switch_g1("1")[[2]][1])
+  h_tract <- func_switch_name(tract)
+  
+  plot1.x <- df_plot[which(df_plot$Group == 0),]$FAvalue
+  plot1.y <- df_plot[which(df_plot$Group == 0),]$MemScore
+  
+  plot2.x <- df_plot[which(df_plot$Group == 1),]$FAvalue
+  plot2.y <- df_plot[which(df_plot$Group == 1),]$MemScore
+  
+  h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
+  x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
+  
+  png(filename = paste0(
+      plotDir_lm, "Plot_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".png"
+    ),
+    width = 8,
+    height = 4,
+    units = "in",
+    res = 600
+  )
+  
+  par(mfrow=c(1,2), 
+      oma=c(0,0,2,0), 
+      family="Times New Roman"
+  )
+  
+  plot(plot1.x, plot1.y, 
+       xlab = x_title, 
+       ylab = mem, 
+       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)),
+       main = h_labels[1])
+  abline(lm(plot1.y ~ plot1.x))
+  
+  plot(plot2.x, plot2.y, 
+       xlab = x_title, 
+       ylab = "",
+       main = h_labels[2], 
+       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+  abline(lm(plot2.y ~ plot2.x))
+  
+  mtext(h_title, outer = T, cex = 1.5)
+  dev.off()
+  par(mfrow=c(1,1))
+}
+
+func_plot_lm2 <- function(df_plot, avg_max, mem){
+  
+  ### --- Notes:
+  #
+  # Plots A, B, and C
+  
+  # plot if group diff
+  h_labels <- c(
+    func_switch_g2("0")[[2]][1], 
+    func_switch_g2("1")[[2]][1], 
+    func_switch_g2("2")[[2]][1]
+  )
+  h_tract <- func_switch_name(tract)
+  
+  plot1.x <- df_plot[which(df_plot$Group == 0),]$FAvalue
+  plot1.y <- df_plot[which(df_plot$Group == 0),]$MemScore
+  
+  plot2.x <- df_plot[which(df_plot$Group == 1),]$FAvalue
+  plot2.y <- df_plot[which(df_plot$Group == 1),]$MemScore
+  
+  plot3.x <- df_plot[which(df_plot$Group == 2),]$FAvalue
+  plot3.y <- df_plot[which(df_plot$Group == 2),]$MemScore
+  
+  h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
+  x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
+  
+  png(filename = paste0(
+      plotDir_lm, "Plot_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".png"
+    ),
+    width = 8,
+    height = 4,
+    units = "in",
+    res = 600
+  )
+  
+  par(mfrow=c(1,3), 
+      oma=c(0,0,2,0), 
+      family="Times New Roman"
+  )
+  
+  plot(plot1.x, plot1.y, 
+       xlab = x_title, 
+       ylab = mem, 
+       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)),
+       main = h_labels[1])
+  abline(lm(plot1.y ~ plot1.x))
+  
+  plot(plot2.x, plot2.y, 
+       xlab = x_title, 
+       ylab = "",
+       main = h_labels[2], 
+       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+  abline(lm(plot2.y ~ plot2.x))
+  
+  plot(plot3.x, plot3.y, 
+       xlab = x_title, 
+       ylab = "",
+       main = h_labels[3], 
+       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+  abline(lm(plot3.y ~ plot3.x))
+  
+  mtext(h_title, outer = T, cex = 1.5)
+  dev.off()
+  par(mfrow=c(1,1))
+}
+
 func_stat_lm <- function(df_lm, tract, gType, avg_max){
   
   ### --- Notes:
   #
-  # Conduct linear model, test lines
-  # then make plots.
+  # Conduct linear model for list of mem scores
+  #   then make plots.
   
-  # "NeuLGI", "NeuLDI", 
-  memList <- c("NegLGI", "NegLDI")
+  memList <- c("NeuLGI", "NeuLDI","NegLGI", "NegLDI")
   
   for(mem in memList){
     
@@ -890,84 +1011,32 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
     capture.output(
       summary(fit.int),
       file = paste0(statsDir_lm,
-                    "Stats_LM-", h_str, "_", tract, "_G", gType, "_", mem, ".txt"
+                    "Stats_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
       )
     )
     capture.output(
       anova(fit.int),
       file = paste0(statsDir_lm,
-                    "Stats_AN-", h_str, "_", tract, "_G", gType, "_", mem, ".txt"
+                    "Stats_AN-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
       )
     )
     
-    # # plot if group diff
-    # if(gType == 1){
-    #   h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
-    #   names(h_cols) <- c(comp1, comp2)
-    #   h_breaks <- c(comp1, comp2)
-    #   h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
-    #   
-    # }else if(gType == 2){
-    #   h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
-    #   names(h_cols) <- c(comp1, comp2)
-    #   h_breaks <- c(comp1, comp2)
-    #   h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
-    # }
-    
-    h_tract <- func_switch_name(tract)
-    
-    
-    # --- update, plot separately
-    plot1.x <- df_mem[which(df_mem$Group == comp1),]$FAvalue
-    plot1.y <- df_mem[which(df_mem$Group == comp1),]$MemScore
-    
-    plot2.x <- df_mem[which(df_mem$Group == comp2),]$FAvalue
-    plot2.y <- df_mem[which(df_mem$Group == comp2),]$MemScore
-    
-    h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
-    x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
-    
-    png(filename = paste0(
-          plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".png"
-        ),
-      width = 8,
-      height = 4,
-      units = "in",
-      res = 600
-    )
-    
-    par(mfrow=c(1,2), 
-        oma=c(0,0,2,0), 
-        family="Times New Roman"
-    )
-    
-    plot(plot1.x, plot1.y, 
-         xlab = x_title, 
-         ylab = mem, 
-         ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)),
-         main = h_labels[1])
-    abline(lm(plot1.y ~ plot1.x))
-    
-    plot(plot2.x, plot2.y, 
-         xlab = x_title, 
-         ylab = "",
-         main = h_labels[2], 
-         ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)))
-    abline(lm(plot2.y ~ plot2.x))
-    
-    mtext(h_title, outer = T, cex = 1.5)
-    dev.off()
-    par(mfrow=c(1,1))
-    # }
+    if(gType == 1){
+      func_plot_lm1(df_mem, avg_max, mem)
+    }else if(gType == 2){
+      func_plot_lm2(df_mem, avg_max, mem)
+    }
   }
 }
 
 
 
-### Work
-#   Two analyses (grouping types):
-#     1) Con vs Anx
-#     2) Con vs GAD vs SAD
+### --- Work:
+#
+# Two analyses (grouping types):
+#   1) Con vs Anx
+#   2) Con vs GAD vs SAD
+
 for(gType in groupType){
 
   # make/get data, assign factor
@@ -1004,437 +1073,21 @@ for(gType in groupType){
     
     # determine group differences
     nodeList <- func_stat_diff(gam_model, tract, gType)
+    
+    # deal w/no differences
+    if(is.na(nodeList)){
+      next
+    }
     avg_nodeList <- nodeList[[1]]
     max_nodeList <- nodeList[[2]]
     
     # avg lm
     df_avg <- func_mkdf_lm(df_tract, avg_nodeList, gType, "Avg")
-    
-    
+    func_stat_lm(df_avg, tract, gType, "Avg")
     
     # max lm
     df_max <- func_mkdf_lm(df_tract, max_nodeList, gType, "Max")
-    
-    
-    
-    # compList <- unique(df_diff$Comparison)
-    # 
-    # # pairwise lm, since plot_diff does pairwise spline tests
-    # for(comp in compList){
-    #   
-    #   # predict mem score from dti average diff
-    #   df_lm <- func_df_avg(comp, df_tract, df_diff)
-    #   # func_stat_lm(df_lm, tract, gType, "Avg", comp)
-    #   func_stat_lm_new(df_lm, tract, gType, "Avg", comp)
-    #   
-    #   # predict mem score from dti max diff
-    #   #   just rerun plot_diff to get table of max diff
-    #   df_max <- func_max_diff(gam_model, gType)
-    #   df_lm <- func_df_max(comp, df_tract, df_max)
-    #   # func_stat_lm(df_lm, tract, gType, "Max", comp)
-    #   func_stat_lm_new(df_lm, tract, gType, "Max", comp)
-    # }
+    func_stat_lm(df_max, tract, gType, "Max")
   }
 }
-
-
-
-
-# # For working out df construction syntax
-#
-# df_adis <- read.delim(paste0(privateDir, "emuR01_adis.csv"), sep = ",", header=T)
-# df_pds <- read.delim(paste0(privateDir, "emuR01_pds_latest.csv"), sep = ",", header=T)
-# 
-# subjList <- unique(df_tract$subjectID)
-# df_practice <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
-# colnames(df_practice) <- c("Subject", "Age", "Sex", "PDS", "Pars6", "ADIS.1", "ADIS.2", "ADIS.3", "ADIS.4")
-# df_practice$Subject <- subjList
-# 
-# for(subj in subjList){
-# 
-#   ind_subj <- grep(subj, df_tract$subjectID)[1]
-#   ind_adis <- grep(subj, df_adis$Participant.ID)
-#   ind_pds <- grep(subj, df_pds$emu_study_id)
-#   ind_out <- grep(subj, df_practice$Subject)
-# 
-#   df_practice[ind_out,]$Age <- df_tract[ind_subj,]$Age
-#   df_practice[ind_out,]$Sex <- df_pds[ind_pds,]$pinf_gender
-#   df_practice[ind_out,]$PDS <- as.integer(df_tract[ind_subj,]$PDS)
-#   df_practice[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
-#   df_practice[ind_out,6:9] <- df_adis[ind_adis,3:6]
-# }
-# # write.csv(df_practice, file="~/Desktop/dana_table.csv", quote = F, row.names=F, col.names = T)
-# 
-# gType <- 2
-# df_practice$Group <- NA
-# for(i in 1:dim(df_practice)[1]){
-#   
-#   ind_adis <- which(df_adis$Participant.ID == df_practice[i,]$Subject)
-#   
-#   if(gType == 1){
-#     h_search <- c("Anxiety", "Phobia")
-#     if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
-#       df_practice[i,]$Group <- "Anx"
-#     }else if(length(grep("None", df_adis[ind_adis,])) != 0){
-#       df_practice[i,]$Group <- "Con"
-#     }else{df_practice[i,]$Group <- "Excl"}
-#     
-#   }else if(gType == 2){
-#     
-#     h_search <- c("Separation", "Social")
-#     
-#     # GAD in dx.1, or in dx.2 but SAD not dx.1
-#     if(
-#       grepl("Gen", df_adis[ind_adis,]$Diagnosis.1) == T |
-#       (sum(grep("Gen", df_adis[ind_adis,])) != 0 &
-#        sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) == 0)
-#       ){
-#       df_practice[i,]$Group <- "GAD"
-#     }else if(sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis,])) != 0){
-#       df_practice[i,]$Group <- "SAD"
-#     }else if(length(grep("None", df_adis[ind_adis,])) != 0){
-#       df_practice[i,]$Group <- "Con"
-#     }else{df_practice[i,]$Group <- "Excl"}
-#       
-#   }
-# }
-
-
-
-
-
-# Functions - old LM
-func_df_avg <- function(comp, df_tract, df_diff){
-
-  ### --- Notes:
-  #
-  # Make a dataframe of averaged FA
-  #   values from all regions that differ
-  #   between two splines
-
-  grpA <- as.numeric(substr(comp, start=1, stop=1))
-  grpB <- as.numeric(substr(comp, start=2, stop=2))
-  df_comp <- df_diff[which(df_diff$Comparison == comp),]
-
-  # make dataframe
-  subjList <- unique(
-    df_tract[which(
-      df_tract$Group == grpA | df_tract$Group == grpB
-    ),]$subjectID
-  )
-
-  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
-  colnames(df_lm) <- c("Comp", "Subj", "FAvalue",
-                       "Pars6", "Group",
-                       "NeuLGI", "NeuLDI",
-                       "NegLGI", "NegLDI")
-  df_lm$Subj <- subjList
-
-  for(subj in subjList){
-    h_mean <- vector()
-    for(i in 1:dim(df_comp)[1]){
-
-      h_start <- which(
-        df_tract$subjectID == subj &
-          df_tract$nodeID == df_comp[i,]$Start
-      )
-
-      h_end <- which(
-        df_tract$subjectID == subj &
-          df_tract$nodeID == df_comp[i,]$End
-      )
-
-      h_mean <- c(h_mean, mean(df_tract[h_start:h_end,]$dti_fa))
-    }
-
-    ind_out <- which(df_lm$Subj == subj)
-    df_lm[ind_out,]$FAvalue <- round(mean(h_mean), 4)
-
-    ind_subj <- which(df_tract$subjectID == subj)[1]
-    df_lm[ind_out,]$Pars6 <- df_tract[ind_subj,]$Pars6
-    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_subj,]$Group) - 1
-
-    df_lm[ind_out,]$NeuLGI <- df_tract[ind_subj,]$NeuLGI
-    df_lm[ind_out,]$NeuLDI <- df_tract[ind_subj,]$NeuLDI
-    df_lm[ind_out,]$NegLGI <- df_tract[ind_subj,]$NegLGI
-    df_lm[ind_out,]$NegLDI <- df_tract[ind_subj,]$NegLDI
-
-    df_lm[ind_out,]$Comp <- comp
-  }
-  df_lm$Group <- factor(df_lm$Group)
-  return(df_lm)
-}
-
-func_df_max <- function(comp, df_tract, df_max){
-
-  ### --- Notes:
-  #
-  # make a dataframe of FA values
-  #   from single region showing showing
-  #   maximal A-B difference
-
-  grpA <- as.numeric(substr(comp, start=1, stop=1))
-  grpB <- as.numeric(substr(comp, start=2, stop=2))
-  node <- df_max[which(df_max$Comparison == comp),]$Node
-
-  # make dataframe
-  subjList <- unique(
-    df_tract[which(
-      df_tract$Group == grpA | df_tract$Group == grpB
-    ),]$subjectID
-  )
-  df_lm <- as.data.frame(matrix(NA, nrow=length(subjList), ncol=9))
-  colnames(df_lm) <- c("Comp","Subj", "FAvalue",
-                       "Pars6", "Group",
-                       "NeuLGI", "NeuLDI",
-                       "NegLGI", "NegLDI")
-  df_lm$Subj <- subjList
-
-  for(subj in subjList){
-
-    ind_data <- which(df_tract$subjectID == subj & df_tract$nodeID == node)
-    ind_out <- which(df_lm$Subj == subj)
-
-    df_lm[ind_out,]$Comp <- comp
-    df_lm[ind_out,]$FAvalue <- df_tract[ind_data,]$dti_fa
-    df_lm[ind_out,]$Pars6 <- df_tract[ind_data,]$Pars6
-    df_lm[ind_out,]$Group <- as.numeric(df_tract[ind_data,]$Group)-1
-    df_lm[ind_out,]$NeuLGI <- df_tract[ind_data,]$NeuLGI
-    df_lm[ind_out,]$NeuLDI <- df_tract[ind_data,]$NeuLDI
-    df_lm[ind_out,]$NegLGI <- df_tract[ind_data,]$NegLGI
-    df_lm[ind_out,]$NegLDI <- df_tract[ind_data,]$NegLDI
-  }
-  df_lm$Group <- factor(df_lm$Group)
-  return(df_lm)
-}
-
-func_stat_lm <- function(df_lm, tract, gType, h_str, comp){
-
-  ### --- Notes:
-  #
-  # Conduct linear model, test lines
-  # then make plots.
-
-  fit.int <- lm(NegLGI ~ FAvalue*Group, data = df_lm)
-
-  capture.output(
-    summary(fit.int),
-    file = paste0(statsDir_lm,
-                  "Stats_LM-", h_str, "_", tract, "_G", gType, ".txt"
-    )
-  )
-  capture.output(
-    anova(fit.int),
-    file = paste0(statsDir_lm,
-                  "Stats_AN-", h_str, "_", tract, "_G", gType, ".txt"
-    )
-  )
-
-  # plot if group diff
-  anova_stat <- anova(fit.int)
-  if(anova_stat$`Pr(>F)`[2] < 0.05){
-
-    comp1 <- substr(comp, start=1, stop=1)
-    comp2 <- substr(comp, start=2, stop=2)
-
-    if(gType == 1){
-      h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
-      names(h_cols) <- c(comp1, comp2)
-      h_breaks <- c(comp1, comp2)
-      h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
-
-    }else if(gType == 2){
-      h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
-      names(h_cols) <- c(comp1, comp2)
-      h_breaks <- c(comp1, comp2)
-      h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
-    }
-
-    h_tract <- func_switch_name(tract)
-    # h_insert <- paste(h_str, h_tract)
-    # h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
-
-    # p <- ggplot(df_lm) +
-    #   aes(x=FAvalue, y=NegLGI, color=Group) +
-    #   geom_point(aes(color=Group)) +
-    #   geom_smooth(method = "lm") +
-    #   ggtitle(h_title) +
-    #   ylab("Neg LGI") +
-    #   xlab("FA value")
-    #
-    # p + scale_color_manual(
-    #   values = h_cols,
-    #   breaks = h_breaks,
-    #   labels = h_labels
-    # )
-    #
-    # ggsave(paste0(plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
-
-    # --- update, plot separately
-    plot1.x <- df_lm[which(df_lm$Group == comp1),]$FAvalue
-    plot1.y <- df_lm[which(df_lm$Group == comp1),]$NegLGI
-
-    plot2.x <- df_lm[which(df_lm$Group == comp2),]$FAvalue
-    plot2.y <- df_lm[which(df_lm$Group == comp2),]$NegLGI
-
-    h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
-    x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
-
-    png(filename = paste0(
-      plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, ".png"
-    ),
-    width = 8,
-    height = 4,
-    units = "in",
-    res = 600
-    )
-
-    par(mfrow=c(1,2), oma=c(0,0,2,0), family="Times New Roman")
-
-    plot(plot1.x, plot1.y,
-         xlab = x_title,
-         ylab = "Neg LGI",
-         ylim = c(min(df_lm$NegLGI), max(df_lm$NegLGI)),
-         main = h_labels[1])
-    abline(lm(plot1.y ~ plot1.x))
-
-    plot(plot2.x, plot2.y,
-         xlab = x_title,
-         ylab = "",
-         main = h_labels[2],
-         ylim = c(min(df_lm$NegLGI), max(df_lm$NegLGI)))
-    abline(lm(plot2.y ~ plot2.x))
-
-    mtext(h_title, outer = T, cex = 1.5)
-    dev.off()
-    par(mfrow=c(1,1))
-  }
-}
-
-func_stat_lm_new <- function(df_lm, tract, gType, h_str, comp){
-
-  ### --- Notes:
-  #
-  # Conduct linear model, test lines
-  # then make plots.
-
-  # "NeuLGI", "NeuLDI",
-  memList <- c("NegLGI", "NegLDI")
-
-  for(mem in memList){
-
-    ind_mem <- grep(mem, colnames(df_lm))
-
-    df_mem <- as.data.frame(matrix(NA, nrow = dim(df_lm)[1], ncol=4))
-    colnames(df_mem) <- c("Comp", "FAvalue", "Group", "MemScore")
-
-    df_mem$Comp <- df_lm$Comp
-    df_mem$FAvalue <- df_lm$FAvalue
-    df_mem$Group <- df_lm$Group
-    df_mem$MemScore <- df_lm[,ind_mem]
-
-    fit.int <- lm(MemScore ~ FAvalue*Group, data = df_mem)
-
-    capture.output(
-      summary(fit.int),
-      file = paste0(statsDir_lm,
-                    "Stats_LM-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".txt"
-      )
-    )
-    capture.output(
-      anova(fit.int),
-      file = paste0(statsDir_lm,
-                    "Stats_AN-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".txt"
-      )
-    )
-
-    # plot if group diff
-    # anova_stat <- anova(fit.int)
-    # if(anova_stat$`Pr(>F)`[2] < 0.05){
-
-    comp1 <- substr(comp, start=1, stop=1)
-    comp2 <- substr(comp, start=2, stop=2)
-
-    if(gType == 1){
-      h_cols = c(func_switch_g1(comp1)[[1]][1], func_switch_g1(comp2)[[1]][1])
-      names(h_cols) <- c(comp1, comp2)
-      h_breaks <- c(comp1, comp2)
-      h_labels <- c(func_switch_g1(comp1)[[2]][1], func_switch_g1(comp2)[[2]][1])
-
-    }else if(gType == 2){
-      h_cols = c(func_switch_g2(comp1)[[1]][1], func_switch_g2(comp2)[[1]][1])
-      names(h_cols) <- c(comp1, comp2)
-      h_breaks <- c(comp1, comp2)
-      h_labels <- c(func_switch_g2(comp1)[[2]][1], func_switch_g2(comp2)[[2]][1])
-    }
-
-    h_tract <- func_switch_name(tract)
-    # h_insert <- paste(h_str, h_tract)
-    # h_title <- paste0("Memory Index Predicted by ", h_insert, " Spline Difference")
-
-    # p <- ggplot(df_lm) +
-    #   aes(x=FAvalue, y=NegLGI, color=Group) +
-    #   geom_point(aes(color=Group)) +
-    #   geom_smooth(method = "lm") +
-    #   ggtitle(h_title) +
-    #   ylab("Neg LGI") +
-    #   xlab("FA value")
-    #
-    # p + scale_color_manual(
-    #   values = h_cols,
-    #   breaks = h_breaks,
-    #   labels = h_labels
-    # )
-    #
-    # ggsave(paste0(plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, ".png"))
-
-    # --- update, plot separately
-    plot1.x <- df_mem[which(df_mem$Group == comp1),]$FAvalue
-    plot1.y <- df_mem[which(df_mem$Group == comp1),]$MemScore
-
-    plot2.x <- df_mem[which(df_mem$Group == comp2),]$FAvalue
-    plot2.y <- df_mem[which(df_mem$Group == comp2),]$MemScore
-
-    h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
-    x_title <- ifelse(h_str == "Avg", "Mean FA", "Max FA")
-
-    png(filename = paste0(
-      plotDir_lm, "Plot_LM-", h_str, "_", tract, "_G", gType, "_", comp, "_", mem, ".png"
-    ),
-    width = 8,
-    height = 4,
-    units = "in",
-    res = 600
-    )
-
-    par(mfrow=c(1,2),
-        oma=c(0,0,2,0),
-        family="Times New Roman"
-    )
-
-    plot(plot1.x, plot1.y,
-         xlab = x_title,
-         ylab = mem,
-         ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)),
-         main = h_labels[1])
-    abline(lm(plot1.y ~ plot1.x))
-
-    plot(plot2.x, plot2.y,
-         xlab = x_title,
-         ylab = "",
-         main = h_labels[2],
-         ylim = c(min(df_mem$MemScore), max(df_mem$MemScore)))
-    abline(lm(plot2.y ~ plot2.x))
-
-    mtext(h_title, outer = T, cex = 1.5)
-    dev.off()
-    par(mfrow=c(1,1))
-    # }
-  }
-}
-
-
-
-
-
 
