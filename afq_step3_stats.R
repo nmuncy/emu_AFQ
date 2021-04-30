@@ -1290,41 +1290,41 @@ func_stat_diff_new <- function(model, tract, g_type){
     func_plot_diff2(model, tract)
   }
   
-  # use tables to get sig nodes, save in df_nodeDiff
-  df_nodeDiff <- as.data.frame(matrix(NA, nrow=1, ncol=4))
-  colnames(df_nodeDiff) <- c("Comparison", "Section", "Start", "End")
-  
-  if(g_type == 1){
-    compList <- "01"
-  }else if(g_type == 2){
-    compList <- c("01", "02", "12")
-  }
-  
-  # get table made by func_plot_diff for e/comparison
-  for(comp in compList){
-    
-    # write, use bash
-    h_cmd = paste0(
-      "tail -n +10 ", 
-      tableDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
-      ".txt | sed 's/-/,/g'"
-    )
-    h_lines <- system(h_cmd, intern = T)
-    
-    # make df
-    h_df <- read.table(
-      text=paste(h_lines, collapse = "\n"), 
-      header = F, 
-      stringsAsFactors = F, 
-      sep = ","
-    )
-    
-    # write to df_nodeDiff
-    for(i in 1:dim(h_df)[1]){
-      df_nodeDiff <- rbind(df_nodeDiff, c(comp, i, h_df[i,1], h_df[i,2]))
-    }
-  }
-  df_nodeDiff <- na.omit(df_nodeDiff)
+  # # use tables to get sig nodes, save in df_sigNodes
+  # df_sigNodes <- as.data.frame(matrix(NA, nrow=1, ncol=4))
+  # colnames(df_sigNodes) <- c("Comparison", "Section", "Start", "End")
+  # 
+  # if(g_type == 1){
+  #   compList <- "01"
+  # }else if(g_type == 2){
+  #   compList <- c("01", "02", "12")
+  # }
+  # 
+  # # get table made by func_plot_diff for e/comparison
+  # for(comp in compList){
+  #   
+  #   # write, use bash
+  #   h_cmd = paste0(
+  #     "tail -n +10 ", 
+  #     tableDir, "Table_Diff_", tract, "_", "G", g_type, "_", comp, 
+  #     ".txt | sed 's/-/,/g'"
+  #   )
+  #   h_lines <- system(h_cmd, intern = T)
+  #   
+  #   # make df
+  #   h_df <- read.table(
+  #     text=paste(h_lines, collapse = "\n"), 
+  #     header = F, 
+  #     stringsAsFactors = F, 
+  #     sep = ","
+  #   )
+  #   
+  #   # write to df_sigNodes
+  #   for(i in 1:dim(h_df)[1]){
+  #     df_sigNodes <- rbind(df_sigNodes, c(comp, i, h_df[i,1], h_df[i,2]))
+  #   }
+  # }
+  # df_sigNodes <- na.omit(df_sigNodes)
   
   
   ## Step 2 - get plot_diff dataframes
@@ -1336,8 +1336,35 @@ func_stat_diff_new <- function(model, tract, g_type){
   
   
   ## Step 3 - for grouping 2, determine
-  #   intx nodes
-  nodeList <- unique(df_allDiff$nodeID)
+  #   nodes where all groups differ from
+  #   e/o (diff)
+  nodeList <- unique(df_estDiff$nodeID)
+  diffList <- vector()
+  for(node in nodeList){
+    ind_node <- which(df_estDiff$nodeID == node)
+    if(g_type == 1){
+      if((abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0){
+        diffList <- c(diffList, node)
+      }
+    }else if(g_type == 2){
+      if(
+        (abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0 &
+        (abs(df_estDiff[ind_node[2],]$est) - df_estDiff[ind_node[2],]$CI) > 0 &
+        (abs(df_estDiff[ind_node[3],]$est) - df_estDiff[ind_node[3],]$CI) > 0
+      ){
+        diffList <- c(diffList, node)
+      }
+    }
+  }
+  
+  # find max diff
+  maxList <- vector()
+  if(g_type == 1){
+    ind_max <- max(abs(df_estDiff[which(df_estDiff$nodeID == diffList),]$est))
+  }else if(g_type == 2){
+    sapply(diffList, )
+  }
+  
   
   
   
