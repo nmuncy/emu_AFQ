@@ -25,7 +25,7 @@ tableDir <- paste0(dataDir, "tables/")
 
 
 # set lists
-groupType <- 1:2
+groupType <- 1:3
 tractList <- c("UNC_L", "UNC_R", "FA")
 
 
@@ -77,17 +77,16 @@ func_df_master <- function(gType){
     ind_pds <- which(df_pds$emu_study_id == subj)
     ind_adis <- which(df_adis$Participant.ID == subj)
     
-    # add pars
+    # get pars
     h_anx <- df_full[ind_full,]$pars_6
     
-    # determine group in one of two ways:
+    # Determine group in one of three ways:
     #   a) 0 = con, 1 = anx
     #       skip subj when not anx/phobia/control
     #   b) 0 = con, 1 = gad, 2 = social/separation
     #       1 = GAD in dx.1, or dx GAD but SAD not dx.1
-    #
-    # ugly - maybe convert to case switch?
-    
+    #   c) 0 = low, 1 = med, 2 = high pars
+    #       low=0-3, med=4-12, high>12
     if(gType == 1){
       
       h_search <- c("Anxiety", "Phobia")
@@ -118,6 +117,15 @@ func_df_master <- function(gType){
         h_group <- 0
       }else{
         next
+      }
+      
+    }else if(gType == 3){
+      if(h_anx <= 3){
+        h_group <- 0
+      }else if(h_anx > 3 & h_anx < 13){
+        h_group <- 1
+      }else if(h_anx > 12){
+        h_group <- 2
       }
     }
     
@@ -349,6 +357,31 @@ func_switch_g2 <- function(value){
   return(list(x_col, x_label))
 }
 
+func_switch_g3 <- function(value){
+  
+  ### --- Notes:
+  #
+  # Switch for determining group, coloring
+  #   for grouping set 3
+  #
+  # TODO maybe combine into func_switch_g3
+  
+  x_col <- switch(
+    value,
+    "0" = "blue",
+    "1" = "darkred",
+    "2" = "black"
+  )
+  
+  x_label <- switch(
+    value,
+    "0" = "Low",
+    "1" = "Med",
+    "2" = "High"
+  )
+  return(list(x_col, x_label))
+}
+
 func_switch_name <- function(tract){
   
   ### --- Notes:
@@ -373,8 +406,6 @@ func_plot_gam <- function(model, tract, gType, df_tract){
   #
   # Will plot the GAM model of
   # dti data
-  #
-  # TODO update h_cols, etc to use switch
   
   # plot
   df_pred <- predict.bam(
@@ -391,7 +422,6 @@ func_plot_gam <- function(model, tract, gType, df_tract){
                         nodeID=df_tract$nodeID,
                         fit=df_pred$fit,
                         se.fit=df_pred$se.fit)
-  
   
   h_tract <- func_switch_name(tract)
   h_title = paste0("GAM Fit of ", h_tract," FA Values")
@@ -416,6 +446,21 @@ func_plot_gam <- function(model, tract, gType, df_tract){
       func_switch_g2("0")[[2]][1], 
       func_switch_g2("1")[[2]][1], 
       func_switch_g2("2")[[2]][1]
+    )
+    
+  }else if(gType == 3){
+    
+    h_cols = c(
+      func_switch_g3("0")[[1]][1], 
+      func_switch_g3("1")[[1]][1], 
+      func_switch_g3("2")[[1]][1]
+    )
+    names(h_cols) <- c("0", "1", "2")
+    h_breaks <- c("0", "1", "2")
+    h_labels <- c(
+      func_switch_g3("0")[[2]][1], 
+      func_switch_g3("1")[[2]][1], 
+      func_switch_g3("2")[[2]][1]
     )
   }
 
@@ -596,9 +641,15 @@ func_plot_diff2 <- function(model, tract, gType){
   ), width = 1800, height = 600
   )
   
-  gA <- func_switch_g2("0")[[2]][1]
-  gB <- func_switch_g2("1")[[2]][1]
-  gC <- func_switch_g2("2")[[2]][1]
+  if(gType == 2){
+    gA <- func_switch_g2("0")[[2]][1]
+    gB <- func_switch_g2("1")[[2]][1]
+    gC <- func_switch_g2("2")[[2]][1]
+  }else if(gType == 3){
+    gA <- func_switch_g3("0")[[2]][1]
+    gB <- func_switch_g3("1")[[2]][1]
+    gC <- func_switch_g3("2")[[2]][1]
+  }
   
   par(mfrow=c(1,3), mar=c(5,5,4,2))
   capture.output(plot_diff(model,
@@ -734,7 +785,7 @@ func_stat_diff <- function(model, tract, gType){
   # make plots and tables
   if(gType == 1){
     func_plot_diff1(model, tract, gType)
-  }else if(gType == 2){
+  }else if(gType == 2 | gType == 3){
     func_plot_diff2(model, tract, gType)
   }
   
@@ -744,7 +795,7 @@ func_stat_diff <- function(model, tract, gType){
   # 
   # if(gType == 1){
   #   compList <- "01"
-  # }else if(gType == 2){
+  # }else if(gType == 2 | gType == 3){
   #   compList <- c("01", "02", "12")
   # }
   # 
@@ -778,7 +829,7 @@ func_stat_diff <- function(model, tract, gType){
   ## Step 2 - get plot_diff dataframes
   if(gType == 1){
     df_estDiff <- func_mkdf_diff1(model)
-  }else if(gType == 2){
+  }else if(gType == 2 | gType == 3){
     df_estDiff <- func_mkdf_diff2(model)
   }
   
@@ -793,7 +844,7 @@ func_stat_diff <- function(model, tract, gType){
       if((abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0){
         diffList <- c(diffList, node)
       }
-    }else if(gType == 2){
+    }else if(gType == 2 | gType == 3){
       if(
         (abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0 &
         (abs(df_estDiff[ind_node[2],]$est) - df_estDiff[ind_node[2],]$CI) > 0 &
@@ -816,7 +867,7 @@ func_stat_diff <- function(model, tract, gType){
     ind_max <- which(abs(h_df$est) == max(abs(h_df$est)))
     node_max <- h_df[ind_max,]$nodeID
     
-  }else if(gType == 2){
+  }else if(gType == 2 | gType == 3){
     f_sum <- function(x){
       sum(abs(df_estDiff[which(df_estDiff$nodeID == x),]$est))
     }
@@ -920,18 +971,27 @@ func_plot_lm1 <- function(df_plot, avg_max, mem){
   par(mfrow=c(1,1))
 }
 
-func_plot_lm2 <- function(df_plot, avg_max, mem){
+func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   
   ### --- Notes:
   #
   # Plots A, B, and C
   
   # plot if group diff
-  h_labels <- c(
-    func_switch_g2("0")[[2]][1], 
-    func_switch_g2("1")[[2]][1], 
-    func_switch_g2("2")[[2]][1]
-  )
+  if(gType == 2){
+    h_labels <- c(
+      func_switch_g2("0")[[2]][1], 
+      func_switch_g2("1")[[2]][1], 
+      func_switch_g2("2")[[2]][1]
+    )
+  }else if(gType == 3){
+    h_labels <- c(
+      func_switch_g3("0")[[2]][1], 
+      func_switch_g3("1")[[2]][1], 
+      func_switch_g3("2")[[2]][1]
+    )
+  }
+  
   h_tract <- func_switch_name(tract)
   
   plot1.x <- df_plot[which(df_plot$Group == 0),]$FAvalue
@@ -1023,8 +1083,8 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
     
     if(gType == 1){
       func_plot_lm1(df_mem, avg_max, mem)
-    }else if(gType == 2){
-      func_plot_lm2(df_mem, avg_max, mem)
+    }else if(gType == 2 | gType == 3){
+      func_plot_lm2(df_mem, avg_max, mem, gType)
     }
   }
 }
@@ -1072,21 +1132,23 @@ for(gType in groupType){
     func_plot_gam(gam_model, tract, gType, df_tract)
     
     # determine group differences
+    #   Note: for group 2, 3 nodeList contains
+    #     list where all groups differed from e/o
     nodeList <- func_stat_diff(gam_model, tract, gType)
     
     # deal w/no differences
     if(is.na(nodeList)){
       next
     }
-    avg_nodeList <- nodeList[[1]]
-    max_nodeList <- nodeList[[2]]
+    avg_nList <- nodeList[[1]]
+    max_nList <- nodeList[[2]]
     
     # avg lm
-    df_avg <- func_mkdf_lm(df_tract, avg_nodeList, gType, "Avg")
+    df_avg <- func_mkdf_lm(df_tract, avg_nList, gType, "Avg")
     func_stat_lm(df_avg, tract, gType, "Avg")
     
     # max lm
-    df_max <- func_mkdf_lm(df_tract, max_nodeList, gType, "Max")
+    df_max <- func_mkdf_lm(df_tract, max_nList, gType, "Max")
     func_stat_lm(df_max, tract, gType, "Max")
   }
 }
