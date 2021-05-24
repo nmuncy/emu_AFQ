@@ -15,7 +15,7 @@ library("lme4")
 ### Set Up
 # Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
-privateDir <- "/Users/nmuncy/Projects/emu_private/"
+privateDir <- "/Users/nmuncy/Projects/emu_data/emu_private/"
 
 plotDir_gam <- paste0(dataDir, "plots_gam/")
 statsDir_gam <- paste0(dataDir, "stats_gam/")
@@ -1152,4 +1152,20 @@ for(gType in groupType){
     func_stat_lm(df_max, tract, gType, "Max")
   }
 }
+
+
+# For Demographics
+gTYpe <- 1
+tract <- "UNC_L"
+
+dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
+df_afq <- read.csv(dataFile)
+df_subset <- df_afq[which(df_afq$nodeID == 0 & df_afq$tractID == tract),]
+
+num_subj <- dim(df_subset)[1]
+num_female <- length(which(df_subset$Sex == 0))
+age_avg <- round(mean(df_subset$Age),2)
+age_sd <- round(sd(df_subset$Age),2)
+
+
 
