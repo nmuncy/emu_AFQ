@@ -1040,6 +1040,7 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   
   plot(plot1.x, plot1.y, 
        xlab = x_title, 
+       cex.lab = 1.5,
        ylab = mem, 
        ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)),
        main = h_labels[1])
@@ -1047,6 +1048,7 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   
   plot(plot2.x, plot2.y, 
        xlab = x_title, 
+       cex.lab = 1.5,
        ylab = "",
        main = h_labels[2], 
        ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
@@ -1054,6 +1056,7 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   
   plot(plot3.x, plot3.y, 
        xlab = x_title, 
+       cex.lab = 1.5,
        ylab = "",
        main = h_labels[3], 
        ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
@@ -1177,7 +1180,7 @@ for(gType in groupType){
 
 
 # For Demographics
-gType <- 1
+gType <- 2
 tract <- "UNC_L"
 
 dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
