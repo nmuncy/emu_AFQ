@@ -9,11 +9,10 @@ library("mgcViz")
 library("ez")
 library("dplyr")
 library("lme4")
-
+library("ggpubr")
 
 
 ### Set Up
-# Orienting paths - set globally
 dataDir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 privateDir <- "/Users/nmuncy/Projects/emu_data/emu_private/"
 
@@ -22,11 +21,7 @@ statsDir_gam <- paste0(dataDir, "stats_gam/")
 plotDir_lm <- paste0(dataDir, "plots_lm/")
 statsDir_lm <- paste0(dataDir, "stats_lm/")
 tableDir <- paste0(dataDir, "tables/")
-
-
-# set lists
-groupType <- 1:3
-tractList <- c("UNC_L", "UNC_R", "FA")
+memoryDir <- paste0(dataDir, "memory/")
 
 
 # Functions - general
@@ -83,6 +78,7 @@ func_df_master <- function(gType){
     # Determine group in one of three ways:
     #   a) 0 = con, 1 = anx
     #       skip subj when not anx/phobia/control
+    #       (not used)
     #   b) 0 = con, 1 = gad, 2 = social/separation
     #       1 = GAD in dx.1, or dx GAD but SAD not dx.1
     #   c) 0 = low, 1 = med, 2 = high pars
@@ -214,105 +210,6 @@ func_df_master <- function(gType){
   # return(df_out)
 }
 
-func_stat_mem <- function(df_afq){
-  
-  ### --- Notes:
-  #
-  # This function will conduct a
-  # WBRM ANOVA on memory measures.
-  
-  # get data, make lists
-  # df_afq <- read.csv(paste0(dataDir, "Master_dataframe.csv"))
-  df_afq$Group <- factor(df_afq$Group)
-  df_afq$Sex <- factor(df_afq$Sex)
-  
-  subjList <- unique(df_afq$subjectID)
-  tractList <- unique(df_afq$tractID)
-  nodeList <- unique(df_afq$nodeID)
-  
-  # set up LDI df
-  df_LDI <-  as.data.frame(matrix(NA,nrow=2*length(subjList), ncol=4))
-  colnames(df_LDI) <- c("Subj", "Group", "Meas", "Value")
-  
-  df_LDI$Subj <- rep(subjList, 2)
-  df_LDI$Meas <- c(
-    rep("NegLDI", length(subjList)), 
-    rep("NeuLDI", length(subjList))
-  )
-  
-  df_LDI$Group <- rep(
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$Group, 
-    2)
-  
-  df_LDI$Value <- c(
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$NegLDI,
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$NeuLDI
-  )
-  
-  # plot
-  boxplot(Value ~ Group*Meas, data=df_LDI)
-  hist(df_LDI[which(df_LDI$Meas == "NegLDI"),]$Value)
-  hist(df_LDI[which(df_LDI$Meas == "NeuLDI"),]$Value)
-  
-  # stats
-  stats_LDI <- ezANOVA(df_LDI,
-                       dv = Value,
-                       wid = Subj,
-                       between = Group,
-                       within = Meas,
-                       type = "III"
-  )
-  
-  # write
-  capture.output(stats_LDI, file = paste0(statsDir_gam, "Stats_AN_LDI.txt"))
-  
-  
-  # repeat for LGI
-  df_LGI <-  as.data.frame(matrix(NA,nrow=2*length(subjList), ncol=4))
-  colnames(df_LGI) <- c("Subj", "Group", "Meas", "Value")
-  
-  df_LGI$Subj <- rep(subjList, 2)
-  df_LGI$Meas <- c(
-    rep("NegLGI", length(subjList)), 
-    rep("NeuLGI", length(subjList))
-  )
-  
-  df_LGI$Group <- rep(
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$Group, 
-    2)
-  
-  df_LGI$Value <- c(
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$NegLGI,
-    df_afq[which(
-      df_afq$nodeID == nodeList[1] & df_afq$tractID == tractList[1]
-    ),]$NeuLGI
-  )
-  
-  boxplot(Value ~ Group*Meas, data=df_LGI)
-  hist(df_LGI[which(df_LGI$Meas == "NegLGI"),]$Value)
-  hist(df_LGI[which(df_LGI$Meas == "NeuLGI"),]$Value)
-  
-  stats_LGI <- ezANOVA(df_LGI,
-                       dv = Value,
-                       wid = Subj,
-                       between = Group,
-                       within = Meas,
-                       type = "III"
-  )
-  
-  capture.output(stats_LGI, file = paste0(statsDir_gam, "Stats_AN_LGI.txt"))
-}
-
 func_switch_g1 <- function(value){
   
   ### --- Notes:
@@ -398,6 +295,111 @@ func_switch_name <- function(tract){
   return(x_tract)
 }
 
+func_stat_mem <- function(df_afq, gType){
+  
+  ### --- Notes:
+  #
+  # This function will conduct a MANOVA
+  #   and post-hoc on memory measures.
+  
+  # subset df for ease of use
+  ind_mem <- which(df_afq$tractID == tractList[1] & df_afq$nodeID == 0)
+  df_mem <- as.data.frame(df_afq[ind_mem,])
+  subjList <- df_mem$subjectID
+  
+  # DF for Group * Neg/Neu Detect/Generalize indices
+  df_long <-  as.data.frame(matrix(NA,nrow=4*length(subjList), ncol=4))
+  colnames(df_long) <- c("Subj", "Group", "Meas", "Value")
+  
+  df_long$Subj <- rep(subjList, 4)
+  df_long$Meas <- c(
+    rep("NegLGI", length(subjList)), 
+    rep("NegLDI", length(subjList)),
+    rep("NeuLGI", length(subjList)), 
+    rep("NeuLDI", length(subjList))
+  )
+  df_long$Group <- rep(df_mem$Group, 4)
+  df_long$Value <- c(
+    df_mem$NegLGI, 
+    df_mem$NegLDI, 
+    df_mem$NeuLGI, 
+    df_mem$NeuLDI
+  )
+  
+  # stats
+  stats_mem <- ezANOVA(df_long,
+   dv = Value,
+   wid = Subj,
+   between = Group,
+   within = Meas,
+   type = "III"
+  )
+  
+  # write
+  capture.output(
+    stats_mem, 
+    file = paste0(memoryDir, "Stats_G", gType, "_MANOVA.txt")
+  )
+  
+  # post-hoc
+  intx_p <- stats_mem$`Sphericity Corrections`$`p[GG]`[2]
+  if(intx_p < 0.05){
+    h.man <- manova(
+      cbind(NeuLGI, NegLGI, NeuLDI, NegLDI) ~ Group, 
+      data = df_mem
+    )
+    capture.output(
+      summary.aov(h.man), 
+      file = paste0(memoryDir, "Stats_G", gType, "_post.txt")
+    )
+  }
+  
+  # Tukey for g3 NegLGI
+  if(gType == 3){
+    
+    group_fac <- as.numeric(df_mem$Group)
+    group_value <- vector()
+    for(val in group_fac){
+      group_value <- c(group_value, func_switch_g3(val)[[2]])
+    }
+    df_mem$Group <- group_value
+  
+    h.lm <- lm(NegLGI ~ Group, data = df_mem)
+    h.av <- aov(h.lm)
+    capture.output(
+      TukeyHSD(h.av), 
+      file = paste0(memoryDir, "Stats_G", gType, "_tuk.txt")
+    )
+    
+    # make a plot
+    h_colors <- c(func_switch_g3("2")[[1]], 
+      func_switch_g3("0")[[1]], 
+      func_switch_g3("1")[[1]]
+    )
+    post_comp <- list(c("High", "Low"))
+    ggboxplot(df_mem, 
+      y="NegLGI", 
+      x="Group", 
+      color="Group", 
+      palette = h_colors, 
+      add = "jitter",
+      title = "top"
+    ) +
+      stat_compare_means(comparisons = post_comp) +
+      ggtitle("Memory Performance on Negative Stimuli") +
+      rremove("legend") +
+      theme(text=element_text(family="Times New Roman", face="bold", size=16))
+    
+    ggsave(
+      paste0(memoryDir, "Plot_Box_G", gType, "_NegLGI.tiff"),
+      units = "in",
+      width = 6,
+      height = 6,
+      device = "tiff"
+    )
+  }
+}
+
 
 # Functions - GAM
 func_plot_gam <- function(model, tract, gType, df_tract){
@@ -468,7 +470,8 @@ func_plot_gam <- function(model, tract, gType, df_tract){
     geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
     ggtitle(h_title) +
     ylab("Fit FA") +
-    xlab("Node ID")
+    xlab("Node ID") +
+    theme(text=element_text(family="Times New Roman", face="bold", size=12))
   
   p + scale_color_manual(
     values = h_cols,
@@ -476,7 +479,13 @@ func_plot_gam <- function(model, tract, gType, df_tract){
     labels = h_labels
   )
   
-  ggsave(paste0(plotDir_gam, "Plot_GAM_", tract, "_", "G", gType, ".png"))
+  ggsave(
+    paste0(plotDir_gam, "Plot_GAM_", tract, "_", "G", gType, ".tiff"),
+    units = "in",
+    width = 6,
+    height = 6,
+    device = "tiff"
+  )
 }
 
 func_stat_gam <- function(tract, df_tract, gType){
@@ -599,15 +608,15 @@ func_plot_diff1 <- function(model, tract, gType){
   # This will draw plots and write tables of sig
   #   node differences for GAM when group style=1
   
-  png(filename = paste0(
-    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, ".png"), 
+  tiff(filename = paste0(
+    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, ".tiff"), 
     width = 600, height = 600
   )
   
   gA <- func_switch_g1("0")[[2]][1]
   gB <- func_switch_g1("1")[[2]][1]
   
-  par(mar=c(5,5,4,2))
+  par(mar=c(5,5,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
                            view="nodeID",
                            comp=list(Group=c("0", "1")),
@@ -636,9 +645,12 @@ func_plot_diff2 <- function(model, tract, gType){
   # This will draw plots and write tables of sig
   #   node differences for GAM when group style=2
   
-  png(filename = paste0(
-    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, ".png"
-  ), width = 1800, height = 600
+  tiff(filename = paste0(
+      plotDir_gam, "Plot_Diff_", 
+      tract, "_", "G", gType, ".tiff"
+    ), 
+    width = 2000, 
+    height = 600
   )
   
   if(gType == 2){
@@ -651,7 +663,7 @@ func_plot_diff2 <- function(model, tract, gType){
     gC <- func_switch_g3("2")[[2]][1]
   }
   
-  par(mfrow=c(1,3), mar=c(5,5,4,2))
+  par(mfrow=c(1,3), mar=c(5,6,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
                            view="nodeID",
                            comp=list(Group=c("0", "1")),
@@ -659,10 +671,10 @@ func_plot_diff2 <- function(model, tract, gType){
                            main = paste0("Difference Scores, ", gA, "-", gB),
                            ylab = "Est. FA difference",
                            xlab = "Tract Node",
-                           cex.lab = 2,
-                           cex.axis = 2,
-                           cex.main = 2.5,
-                           cex.sub = 1.5),
+                           cex.lab = 3,
+                           cex.axis = 3,
+                           cex.main = 3.5,
+                           cex.sub = 2.5),
                  file = paste0(tableDir, 
                                "Table_Diff_", 
                                tract, "_", "G", 
@@ -678,10 +690,10 @@ func_plot_diff2 <- function(model, tract, gType){
                            main = paste0("Difference Scores, ", gA, "-", gC),
                            ylab = "",
                            xlab = "Tract Node",
-                           cex.lab = 2,
-                           cex.axis = 2,
-                           cex.main = 2.5,
-                           cex.sub = 2),
+                           cex.lab = 3,
+                           cex.axis = 3,
+                           cex.main = 3.5,
+                           cex.sub = 2.5),
                  file = paste0(tableDir, 
                                "Table_Diff_", 
                                tract, "_", "G", 
@@ -696,10 +708,10 @@ func_plot_diff2 <- function(model, tract, gType){
                            main = paste0("Difference Scores, ", gB, "-", gC),
                            ylab = "",
                            xlab = "Tract Node",
-                           cex.lab = 2,
-                           cex.axis = 2,
-                           cex.main = 2.5,
-                           cex.sub = 2),
+                           cex.lab = 3,
+                           cex.axis = 3,
+                           cex.main = 3.5,
+                           cex.sub = 2.5),
                  file = paste0(tableDir, 
                                "Table_Diff_", 
                                tract, "_", "G", 
@@ -938,8 +950,12 @@ func_plot_lm1 <- function(df_plot, avg_max, mem){
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
   x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
   
-  png(filename = paste0(
-      plotDir_lm, "Plot_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".png"
+  tiff(filename = paste0(
+      plotDir_lm, 
+      "Plot_LM-", 
+      avg_max, "_", 
+      tract, "_G",
+      gType, "_", mem, ".tiff"
     ),
     width = 8,
     height = 4,
@@ -1006,8 +1022,10 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
   x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
   
-  png(filename = paste0(
-      plotDir_lm, "Plot_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".png"
+  tiff(filename = paste0(
+      plotDir_lm, "Plot_LM-", 
+      avg_max, "_", tract, "_G", 
+      gType, "_", mem, ".tiff"
     ),
     width = 8,
     height = 4,
@@ -1053,7 +1071,8 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
   # Conduct linear model for list of mem scores
   #   then make plots.
   
-  memList <- c("NeuLGI", "NeuLDI","NegLGI", "NegLDI")
+  # memList <- c("NeuLGI", "NeuLDI","NegLGI", "NegLDI")
+  memList <- "NegLGI"
   
   for(mem in memList){
     
@@ -1074,12 +1093,12 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
                     "Stats_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
       )
     )
-    capture.output(
-      anova(fit.int),
-      file = paste0(statsDir_lm,
-                    "Stats_AN-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
-      )
-    )
+    # capture.output(
+    #   anova(fit.int),
+    #   file = paste0(statsDir_lm,
+    #                 "Stats_AN-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
+    #   )
+    # )
     
     if(gType == 1){
       func_plot_lm1(df_mem, avg_max, mem)
@@ -1094,8 +1113,11 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
 ### --- Work:
 #
 # Two analyses (grouping types):
-#   1) Con vs Anx
 #   2) Con vs GAD vs SAD
+#   3) PARS Low vs Med vs High
+
+groupType <- 2:3
+tractList <- c("UNC_L", "UNC_R", "FA")
 
 for(gType in groupType){
 
@@ -1110,8 +1132,8 @@ for(gType in groupType){
   df_afq$Group <- factor(df_afq$Group)
   df_afq$Sex <- factor(df_afq$Sex)
   
-  # # Check Memory behavior
-  # func_stat_mem()
+  # Check Memory behavior
+  func_stat_mem(df_afq, gType)
   
   for(tract in tractList){
     
@@ -1147,15 +1169,15 @@ for(gType in groupType){
     df_avg <- func_mkdf_lm(df_tract, avg_nList, gType, "Avg")
     func_stat_lm(df_avg, tract, gType, "Avg")
     
-    # max lm
-    df_max <- func_mkdf_lm(df_tract, max_nList, gType, "Max")
-    func_stat_lm(df_max, tract, gType, "Max")
+    # # max lm
+    # df_max <- func_mkdf_lm(df_tract, max_nList, gType, "Max")
+    # func_stat_lm(df_max, tract, gType, "Max")
   }
 }
 
 
 # For Demographics
-gTYpe <- 1
+gType <- 1
 tract <- "UNC_L"
 
 dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
