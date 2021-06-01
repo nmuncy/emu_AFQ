@@ -210,34 +210,12 @@ func_df_master <- function(gType){
   # return(df_out)
 }
 
-func_switch_g1 <- function(value){
+func_switch_plot <- function(value, gType){
   
   ### --- Notes:
   #
   # Switch for determining group, coloring
-  #   for grouping set 1
-  
-  x_col <- switch(
-    value,
-    "0" = "blue",
-    "1" = "darkred",
-  )
-  
-  x_label <- switch(
-    value,
-    "0" = "Con",
-    "1" = "Anx",
-  )
-  return(list(x_col, x_label))
-}
 
-func_switch_g2 <- function(value){
-  
-  ### --- Notes:
-  #
-  # Switch for determining group, coloring
-  #   for grouping set 2
-  
   x_col <- switch(
     value,
     "0" = "blue",
@@ -245,37 +223,21 @@ func_switch_g2 <- function(value){
     "2" = "black"
   )
   
-  x_label <- switch(
-    value,
-    "0" = "Con",
-    "1" = "GAD",
-    "2" = "SAD"
-  )
-  return(list(x_col, x_label))
-}
-
-func_switch_g3 <- function(value){
-  
-  ### --- Notes:
-  #
-  # Switch for determining group, coloring
-  #   for grouping set 3
-  #
-  # TODO maybe combine into func_switch_g3
-  
-  x_col <- switch(
-    value,
-    "0" = "blue",
-    "1" = "darkred",
-    "2" = "black"
-  )
-  
-  x_label <- switch(
-    value,
-    "0" = "Low",
-    "1" = "Med",
-    "2" = "High"
-  )
+  if(gType == 2){
+    x_label <- switch(
+      value,
+      "0" = "Con",
+      "1" = "GAD",
+      "2" = "SAD"
+    )
+  }else if(gType == 3){
+    x_label <- switch(
+      value,
+      "0" = "Low",
+      "1" = "Med",
+      "2" = "High"
+    )
+  }
   return(list(x_col, x_label))
 }
 
@@ -360,7 +322,7 @@ func_stat_mem <- function(df_afq, gType){
     group_fac <- as.numeric(df_mem$Group)
     group_value <- vector()
     for(val in group_fac){
-      group_value <- c(group_value, func_switch_g3(val)[[2]])
+      group_value <- c(group_value, func_switch_plot(val, gType)[[2]])
     }
     df_mem$Group <- group_value
   
@@ -372,9 +334,9 @@ func_stat_mem <- function(df_afq, gType){
     )
     
     # make a plot
-    h_colors <- c(func_switch_g3("2")[[1]], 
-      func_switch_g3("0")[[1]], 
-      func_switch_g3("1")[[1]]
+    h_colors <- c(func_switch_plot("2", gType)[[1]], 
+      func_switch_plot("0", gType)[[1]], 
+      func_switch_plot("1", gType)[[1]]
     )
     post_comp <- list(c("High", "Low"))
     ggboxplot(df_mem, 
@@ -406,8 +368,7 @@ func_plot_gam <- function(model, tract, gType, df_tract){
   
   ### --- Notes:
   #
-  # Will plot the GAM model of
-  # dti data
+  # Will plot the GAM model of dti data
   
   # plot
   df_pred <- predict.bam(
@@ -428,43 +389,18 @@ func_plot_gam <- function(model, tract, gType, df_tract){
   h_tract <- func_switch_name(tract)
   h_title = paste0("GAM Fit of ", h_tract," FA Values")
   
-  if(gType == 1){
-    
-    h_cols = c(func_switch_g1("0")[[1]][1], func_switch_g1("1")[[1]][1])
-    names(h_cols) <- c("0", "1")
-    h_breaks <- c("0", "1")
-    h_labels <- c(func_switch_g1("0")[[2]][1], func_switch_g1("1")[[2]][1])
-    
-  }else if(gType == 2){
-
-    h_cols = c(
-      func_switch_g2("0")[[1]][1], 
-      func_switch_g2("1")[[1]][1], 
-      func_switch_g2("2")[[1]][1]
-    )
-    names(h_cols) <- c("0", "1", "2")
-    h_breaks <- c("0", "1", "2")
-    h_labels <- c(
-      func_switch_g2("0")[[2]][1], 
-      func_switch_g2("1")[[2]][1], 
-      func_switch_g2("2")[[2]][1]
-    )
-    
-  }else if(gType == 3){
-    
-    h_cols = c(
-      func_switch_g3("0")[[1]][1], 
-      func_switch_g3("1")[[1]][1], 
-      func_switch_g3("2")[[1]][1]
-    )
-    names(h_cols) <- c("0", "1", "2")
-    h_breaks <- c("0", "1", "2")
-    h_labels <- c(
-      func_switch_g3("0")[[2]][1], 
-      func_switch_g3("1")[[2]][1], 
-      func_switch_g3("2")[[2]][1]
-    )
-  }
+  h_cols = c(
+    func_switch_plot("0", gType)[[1]][1], 
+    func_switch_plot("1", gType)[[1]][1], 
+    func_switch_plot("2", gType)[[1]][1]
+  )
+  names(h_cols) <- c("0", "1", "2")
+  h_breaks <- c("0", "1", "2")
+  h_labels <- c(
+    func_switch_plot("0", gType)[[2]][1], 
+    func_switch_plot("1", gType)[[2]][1], 
+    func_switch_plot("2", gType)[[2]][1]
+  )
 
   p <- ggplot(data = df_pred) +
     geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
@@ -492,7 +428,7 @@ func_stat_gam <- function(tract, df_tract, gType){
   
   ### --- Notes:
   #
-  # This function has 3 main steps
+  # This function has 2 main steps
   #
   # 1) Determine best GAM family.
   #   This is based off the distribution of the
@@ -506,19 +442,11 @@ func_stat_gam <- function(tract, df_tract, gType){
   #   was added. The covariate model is then
   #   plotted.
   #
-  # 3) A-B differences between splines are
-  #   then plotted. The node which showed
-  #   maximum difference is then used
-  #   to make df_max.
-  #
   # Note: this work can only be a function since
   #   it happened that all tracts had the same
   #   distribution, family, K, and best model.
-  #   Individual 
-  
-  
+
   ### Model tract, no covariates
-  
   # # plot mean data
   # ggplot(data = df_tract) +
   #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=Group))
@@ -601,25 +529,25 @@ func_stat_gam <- function(tract, df_tract, gType){
   return(fit_cov_pds)
 }
 
-func_plot_diff1 <- function(model, tract, gType){
+func_plot_diff_pair <- function(model, tract, gType, factorA, factorB){
   
   ### --- Notes:
   #
-  # This will draw plots and write tables of sig
-  #   node differences for GAM when group style=1
+  # This will make plots and write tables of sig
+  #   node differences for GAM splines bx 2 factors (groups)
   
   tiff(filename = paste0(
-    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, ".tiff"), 
+    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, "_pair.tiff"), 
     width = 600, height = 600
   )
   
-  gA <- func_switch_g1("0")[[2]][1]
-  gB <- func_switch_g1("1")[[2]][1]
+  gA <- func_switch_plot(factorA, gType)[[2]][1]
+  gB <- func_switch_plot(factorB, gType)[[2]][1]
   
   par(mar=c(5,5,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
                            view="nodeID",
-                           comp=list(Group=c("0", "1")),
+                           comp=list(Group=c(factorA, factorB)),
                            rm.ranef = T,
                            main = paste0("Difference Scores, ", gA, "-", gB),
                            ylab = "Est. FA difference",
@@ -631,14 +559,16 @@ func_plot_diff1 <- function(model, tract, gType){
                  file = paste0(tableDir, 
                                "Table_Diff_", 
                                tract, "_", "G",
-                               gType, "_01.txt"
+                               gType, "_",
+                               factorA, factorB,
+                               ".txt"
                  )
   )
   par(mar=c(5,4,4,2))
   dev.off()
 }
 
-func_plot_diff2 <- function(model, tract, gType){
+func_plot_diff_anova <- function(model, tract, gType){
   
   ### --- Notes:
   #
@@ -647,21 +577,15 @@ func_plot_diff2 <- function(model, tract, gType){
   
   tiff(filename = paste0(
       plotDir_gam, "Plot_Diff_", 
-      tract, "_", "G", gType, ".tiff"
+      tract, "_", "G", gType, "_anova.tiff"
     ), 
     width = 2000, 
     height = 600
   )
   
-  if(gType == 2){
-    gA <- func_switch_g2("0")[[2]][1]
-    gB <- func_switch_g2("1")[[2]][1]
-    gC <- func_switch_g2("2")[[2]][1]
-  }else if(gType == 3){
-    gA <- func_switch_g3("0")[[2]][1]
-    gB <- func_switch_g3("1")[[2]][1]
-    gC <- func_switch_g3("2")[[2]][1]
-  }
+  gA <- func_switch_plot("0", gType)[[2]][1]
+  gB <- func_switch_plot("1", gType)[[2]][1]
+  gC <- func_switch_plot("2", gType)[[2]][1]
   
   par(mfrow=c(1,3), mar=c(5,6,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
@@ -722,25 +646,25 @@ func_plot_diff2 <- function(model, tract, gType){
   dev.off()
 }
 
-func_mkdf_diff1 <- function(model){
+func_mkdf_diff_pair <- function(model, factorA, factorB){
   
   ### --- Notes:
   #
   # Returns a dataframe of difference
   #   scores for each node.
   
-  p01 <- plot_diff(model,
+  df_pair <- plot_diff(model,
                    view="nodeID",
-                   comp=list(Group=c("0", "1")),
+                   comp=list(Group=c(factorA, factorB)),
                    rm.ranef = T,
                    plot = F)
   
-  colnames(p01) <- c(colnames(p01[,1:4]), "Comp")
-  p01$Comp <- "01"
-  return(p01)
+  colnames(df_pair) <- c(colnames(df_pair[,1:4]), "Comp")
+  df_pair$Comp <- paste0(factorA, factorB)
+  return(df_pair)
 }
 
-func_mkdf_diff2 <- function(model){
+func_mkdf_diff_anova <- function(model){
   
   ### --- Notes:
   #
@@ -777,7 +701,7 @@ func_mkdf_diff2 <- function(model){
   return(df_out)
 }
 
-func_stat_diff <- function(model, tract, gType){
+func_stat_diff <- function(model, tract, gType, pairAn, comp_list){
   
   ### --- Notes:
   #
@@ -795,68 +719,32 @@ func_stat_diff <- function(model, tract, gType){
   # Returns list of nodes, max node
   
   # make plots and tables
-  if(gType == 1){
-    func_plot_diff1(model, tract, gType)
-  }else if(gType == 2 | gType == 3){
-    func_plot_diff2(model, tract, gType)
+  if(pairAn == "pair"){
+    func_plot_diff_pair(model, tract, gType, comp_list[1], comp_list[2])
+  }else if(pairAn == "anova"){
+    func_plot_diff_anova(model, tract, gType)
   }
   
-  # # use tables to get sig nodes, save in df_sigNodes
-  # df_sigNodes <- as.data.frame(matrix(NA, nrow=1, ncol=4))
-  # colnames(df_sigNodes) <- c("Comparison", "Section", "Start", "End")
-  # 
-  # if(gType == 1){
-  #   compList <- "01"
-  # }else if(gType == 2 | gType == 3){
-  #   compList <- c("01", "02", "12")
-  # }
-  # 
-  # # get table made by func_plot_diff for e/comparison
-  # for(comp in compList){
-  #   
-  #   # write, use bash
-  #   h_cmd = paste0(
-  #     "tail -n +10 ", 
-  #     tableDir, "Table_Diff_", tract, "_", "G", gType, "_", comp, 
-  #     ".txt | sed 's/-/,/g'"
-  #   )
-  #   h_lines <- system(h_cmd, intern = T)
-  #   
-  #   # make df
-  #   h_df <- read.table(
-  #     text=paste(h_lines, collapse = "\n"), 
-  #     header = F, 
-  #     stringsAsFactors = F, 
-  #     sep = ","
-  #   )
-  #   
-  #   # write to df_sigNodes
-  #   for(i in 1:dim(h_df)[1]){
-  #     df_sigNodes <- rbind(df_sigNodes, c(comp, i, h_df[i,1], h_df[i,2]))
-  #   }
-  # }
-  # df_sigNodes <- na.omit(df_sigNodes)
-  
-  
-  ## Step 2 - get plot_diff dataframes
-  if(gType == 1){
-    df_estDiff <- func_mkdf_diff1(model)
-  }else if(gType == 2 | gType == 3){
-    df_estDiff <- func_mkdf_diff2(model)
+  # get plot_diff data frames
+  if(pairAn == "pair"){
+    df_estDiff <- func_mkdf_diff_pair(model, comp_list[1], comp_list[2])
+  }else if(pairAn == "anova"){
+    df_estDiff <- func_mkdf_diff_anova(model)
   }
   
-  
-  ## Step 3 - for grouping 2, determine
-  #   nodes where all groups differ from e/o
+  # determine where nodes differ, anova
+  #   looks for nodes that differ bx ALL groups
   nodeList <- unique(df_estDiff$nodeID)
   diffList <- vector()
   for(node in nodeList){
     ind_node <- which(df_estDiff$nodeID == node)
-    if(gType == 1){
-      if((abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0){
+    if(pairAn == "pair"){
+      h_est <- abs(df_estDiff[ind_node[1],]$est)
+      h_ci <- df_estDiff[ind_node[1],]$CI
+      if((h_est - h_ci) > 0){
         diffList <- c(diffList, node)
       }
-    }else if(gType == 2 | gType == 3){
+    }else if(pairAn == "anova"){
       if(
         (abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0 &
         (abs(df_estDiff[ind_node[2],]$est) - df_estDiff[ind_node[2],]$CI) > 0 &
@@ -872,14 +760,14 @@ func_stat_diff <- function(model, tract, gType){
     stop
   }
   
-  # find max diff
-  if(gType == 1){
+  # find node of max difference
+  if(pairAn == "pair"){
     
     h_df <- subset(df_estDiff, nodeID %in% diffList)
     ind_max <- which(abs(h_df$est) == max(abs(h_df$est)))
     node_max <- h_df[ind_max,]$nodeID
     
-  }else if(gType == 2 | gType == 3){
+  }else if(pairAn == "anova"){
     f_sum <- function(x){
       sum(abs(df_estDiff[which(df_estDiff$nodeID == x),]$est))
     }
@@ -931,31 +819,39 @@ func_mkdf_lm <- function(df_tract, node_list, gType, avg_max){
   return(df_out)
 }
 
-func_plot_lm1 <- function(df_plot, avg_max, mem){
+func_plot_lm_pair <- function(df_plot, avg_max, mem, factorA, factorB){
   
   ### --- Notes:
   #
-  # Plots A and B
+  # Plots LM of A and B
   
-  # plot if group diff
-  h_labels <- c(func_switch_g1("0")[[2]][1], func_switch_g1("1")[[2]][1])
+  # determine labels
+  h_labels <- c(
+    func_switch_plot(factorA, gType)[[2]][1], 
+    func_switch_plot(factorB, gType)[[2]][1]
+  )
   h_tract <- func_switch_name(tract)
   
-  plot1.x <- df_plot[which(df_plot$Group == 0),]$FAvalue
-  plot1.y <- df_plot[which(df_plot$Group == 0),]$MemScore
+  # set up for plot A
+  plot1.x <- df_plot[which(df_plot$Group == as.numeric(factorA)),]$FAvalue
+  plot1.y <- df_plot[which(df_plot$Group == as.numeric(factorA)),]$MemScore
   
-  plot2.x <- df_plot[which(df_plot$Group == 1),]$FAvalue
-  plot2.y <- df_plot[which(df_plot$Group == 1),]$MemScore
+  # set up for plot B
+  plot2.x <- df_plot[which(df_plot$Group == as.numeric(factorB)),]$FAvalue
+  plot2.y <- df_plot[which(df_plot$Group == as.numeric(factorB)),]$MemScore
   
+  # omni title
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
   x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
   
+  # set up, draw
   tiff(filename = paste0(
       plotDir_lm, 
       "Plot_LM-", 
       avg_max, "_", 
       tract, "_G",
-      gType, "_", mem, ".tiff"
+      gType, "_", 
+      mem, "_pair.tiff"
     ),
     width = 8,
     height = 4,
@@ -987,27 +883,17 @@ func_plot_lm1 <- function(df_plot, avg_max, mem){
   par(mfrow=c(1,1))
 }
 
-func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
+func_plot_lm_anova <- function(df_plot, avg_max, mem, gType){
   
   ### --- Notes:
   #
   # Plots A, B, and C
   
-  # plot if group diff
-  if(gType == 2){
-    h_labels <- c(
-      func_switch_g2("0")[[2]][1], 
-      func_switch_g2("1")[[2]][1], 
-      func_switch_g2("2")[[2]][1]
-    )
-  }else if(gType == 3){
-    h_labels <- c(
-      func_switch_g3("0")[[2]][1], 
-      func_switch_g3("1")[[2]][1], 
-      func_switch_g3("2")[[2]][1]
-    )
-  }
-  
+  h_labels <- c(
+    func_switch_plot("0", gType)[[2]][1], 
+    func_switch_plot("1", gType)[[2]][1], 
+    func_switch_plot("2", gType)[[2]][1]
+  )
   h_tract <- func_switch_name(tract)
   
   plot1.x <- df_plot[which(df_plot$Group == 0),]$FAvalue
@@ -1024,8 +910,10 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   
   tiff(filename = paste0(
       plotDir_lm, "Plot_LM-", 
-      avg_max, "_", tract, "_G", 
-      gType, "_", mem, ".tiff"
+      avg_max, "_", 
+      tract, "_G", 
+      gType, "_", 
+      mem, "_anova.tiff"
     ),
     width = 8,
     height = 4,
@@ -1067,7 +955,7 @@ func_plot_lm2 <- function(df_plot, avg_max, mem, gType){
   par(mfrow=c(1,1))
 }
 
-func_stat_lm <- function(df_lm, tract, gType, avg_max){
+func_stat_lm <- function(df_lm, tract, gType, avg_max, pairAn, comp_list){
   
   ### --- Notes:
   #
@@ -1079,6 +967,7 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
   
   for(mem in memList){
     
+    # make dataframe for memory behavior
     df_mem <- as.data.frame(matrix(NA, nrow = dim(df_lm)[1], ncol=4))
     colnames(df_mem) <- c("Subj", "FAvalue", "Group", "MemScore")
     
@@ -1086,27 +975,33 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
     df_mem$FAvalue <- df_lm$FAvalue
     df_mem$Group <- df_lm$Group
     
+    # get/add appropriate behavior score
     ind_mem <- grep(mem, colnames(df_lm))
     df_mem$MemScore <- df_lm[,ind_mem]
     
+    # subset for pairwise comparison
+    if(pairAn == "pair"){
+      df_mem <- df_mem[which(
+        df_mem$Group == comp_list[1] | df_mem$Group == comp_list[2]
+      ),]
+    }
+    
+    # linear regression
     fit.int <- lm(MemScore ~ FAvalue*Group, data = df_mem)
     capture.output(
       summary(fit.int),
       file = paste0(statsDir_lm,
-                    "Stats_LM-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
+                    "Stats_LM-", avg_max, "_", 
+                    tract, "_G", gType, "_", 
+                    mem, "_", pairAn, ".txt"
       )
     )
-    # capture.output(
-    #   anova(fit.int),
-    #   file = paste0(statsDir_lm,
-    #                 "Stats_AN-", avg_max, "_", tract, "_G", gType, "_", mem, ".txt"
-    #   )
-    # )
     
-    if(gType == 1){
-      func_plot_lm1(df_mem, avg_max, mem)
-    }else if(gType == 2 | gType == 3){
-      func_plot_lm2(df_mem, avg_max, mem, gType)
+    # make plots
+    if(pairAn == "pair"){
+      func_plot_lm_pair(df_mem, avg_max, mem, comp_list[1], comp_list[2])
+    }else if(pairAn == "anova"){
+      func_plot_lm_anova(df_mem, avg_max, mem, gType)
     }
   }
 }
@@ -1116,11 +1011,19 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max){
 ### --- Work:
 #
 # Two analyses (grouping types):
+#   1) Con vs Anx (removed)
 #   2) Con vs GAD vs SAD
 #   3) PARS Low vs Med vs High
-
 groupType <- 2:3
 tractList <- c("UNC_L", "UNC_R", "FA")
+
+# for spline comparisons, linear models,
+#   determine whether to compare all (anova)
+#   or a pair. If pair, set factors as string.
+pairAn <- "pair"
+g2_pairList <- c("0", "2")
+g3_pairList <- c("0", "2")
+
 
 for(gType in groupType){
 
@@ -1137,6 +1040,12 @@ for(gType in groupType){
   
   # Check Memory behavior
   func_stat_mem(df_afq, gType)
+  
+  # get comp list
+  if(pairAn == "pair"){
+    h_var <- paste0("g", gType, "_pairList")
+    comp_list <- get(h_var)
+  }
   
   for(tract in tractList){
     
@@ -1156,25 +1065,26 @@ for(gType in groupType){
     gam_model <- readRDS(gamFile)
     func_plot_gam(gam_model, tract, gType, df_tract)
     
-    # determine group differences
-    #   Note: for group 2, 3 nodeList contains
-    #     list where all groups differed from e/o
-    nodeList <- func_stat_diff(gam_model, tract, gType)
+    # determine nodes of group differences
+    #   Use "anova" to compare bx >2 groups, and note
+    #     that differences between splines will be for
+    #     nodes which differed between ALL groups
+    nodeList <- func_stat_diff(gam_model, tract, gType, pairAn, comp_list)
     
     # deal w/no differences
     if(is.na(nodeList)){
       next
     }
-    avg_nList <- nodeList[[1]]
-    max_nList <- nodeList[[2]]
     
     # avg lm
+    avg_nList <- nodeList[[1]]
     df_avg <- func_mkdf_lm(df_tract, avg_nList, gType, "Avg")
-    func_stat_lm(df_avg, tract, gType, "Avg")
+    func_stat_lm(df_avg, tract, gType, "Avg", pairAn, comp_list)
     
     # # max lm
+    # max_nList <- nodeList[[2]]
     # df_max <- func_mkdf_lm(df_tract, max_nList, gType, "Max")
-    # func_stat_lm(df_max, tract, gType, "Max")
+    # func_stat_lm(df_max, tract, gType, "Max", pairAn, comp_list)
   }
 }
 
@@ -1191,6 +1101,5 @@ num_subj <- dim(df_subset)[1]
 num_female <- length(which(df_subset$Sex == 0))
 age_avg <- round(mean(df_subset$Age),2)
 age_sd <- round(sd(df_subset$Age),2)
-
 
 
