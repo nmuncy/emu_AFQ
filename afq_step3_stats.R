@@ -1087,19 +1087,3 @@ for(gType in groupType){
     # func_stat_lm(df_max, tract, gType, "Max", pairAn, comp_list)
   }
 }
-
-
-# For Demographics
-gType <- 2
-tract <- "UNC_L"
-
-dataFile <- paste0(dataDir, "Master_dataframe_G", gType,".csv")
-df_afq <- read.csv(dataFile)
-df_subset <- df_afq[which(df_afq$nodeID == 0 & df_afq$tractID == tract),]
-
-num_subj <- dim(df_subset)[1]
-num_female <- length(which(df_subset$Sex == 0))
-age_avg <- round(mean(df_subset$Age),2)
-age_sd <- round(sd(df_subset$Age),2)
-
-
