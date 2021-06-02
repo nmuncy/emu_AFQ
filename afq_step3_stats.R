@@ -476,26 +476,35 @@ func_stat_gam <- function(tract, df_tract, gType){
                    method = "REML")
   
   # gam.check(fit_gamma, rep = 500)
-  # 
-  # fit_beta <- bam(dti_fa ~ Group +
-  #                   Sex +
-  #                   s(nodeID, by=Group, k=40) +
-  #                   s(subjectID, bs="re"),
-  #                 data = df_tract,
-  #                 family = betar(link = "logit"),
-  #                 method = "REML")
-  # 
-  # gam.check(fit_beta, rep = 500)
-  # 
-  # infoMessages('on')
-  # compareML(fit_gamma, fit_beta)  # fit_gamma recommended
-  
-  # get stats
-  # summary(fit_gamma)
   capture.output(
     summary(fit_gamma), 
     file = paste0(
       statsDir_gam, "Stats_GAM-gamma_", tract, "_", "G", gType, ".txt"
+    )
+  )
+
+  fit_beta <- bam(dti_fa ~ Group +
+                    Sex +
+                    s(nodeID, by=Group, k=40) +
+                    s(subjectID, bs="re"),
+                  data = df_tract,
+                  family = betar(link = "logit"),
+                  method = "REML")
+
+  # gam.check(fit_beta, rep = 500)
+  capture.output(
+    summary(fit_beta), 
+    file = paste0(
+      statsDir_gam, "Stats_GAM-beta_", tract, "_", "G", gType, ".txt"
+    )
+  )
+  
+  # infoMessages('on')
+  # compareML(fit_gamma, fit_beta)  # fit_gamma recommended
+  capture.output(
+    compareML(fit_gamma, fit_beta), 
+    file = paste0(
+      statsDir_gam, "Stats_GAM-comp_gam-beta_", tract, "_", "G", gType, ".txt"
     )
   )
   
@@ -511,14 +520,6 @@ func_stat_gam <- function(tract, df_tract, gType){
                      method = "REML")
   
   # gam.check(fit_cov_pds, rep = 500)
-  
-  # Test cov model against gamma
-  capture.output(
-    compareML(fit_gamma, fit_cov_pds), 
-    file = paste0(
-      statsDir_gam, "Stats_GAM-comp_", tract, "_", "G", gType, ".txt"
-    )
-  )
   capture.output(
     summary(fit_cov_pds), 
     file = paste0(
@@ -526,6 +527,13 @@ func_stat_gam <- function(tract, df_tract, gType){
     )
   )
   
+  # Test cov model against gamma
+  capture.output(
+    compareML(fit_gamma, fit_cov_pds), 
+    file = paste0(
+      statsDir_gam, "Stats_GAM-comp_gam-cov_", tract, "_", "G", gType, ".txt"
+    )
+  )
   return(fit_cov_pds)
 }
 
