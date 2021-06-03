@@ -270,30 +270,35 @@ func_stat_mem <- function(df_afq, gType){
   subjList <- df_mem$subjectID
   
   # DF for Group * Neg/Neu Detect/Generalize indices
-  df_long <-  as.data.frame(matrix(NA,nrow=4*length(subjList), ncol=4))
-  colnames(df_long) <- c("Subj", "Group", "Meas", "Value")
+  #   update, only do LGI
+  df_long <-  as.data.frame(matrix(NA,nrow=4*length(subjList), ncol=5))
+  colnames(df_long) <- c("Subj", "Group", "Valence", "Mem", "Value")
   
   df_long$Subj <- rep(subjList, 4)
-  df_long$Meas <- c(
-    rep("NegLGI", length(subjList)), 
-    rep("NegLDI", length(subjList)),
-    rep("NeuLGI", length(subjList)), 
-    rep("NeuLDI", length(subjList))
-  )
   df_long$Group <- rep(df_mem$Group, 4)
+  df_long$Valence <- c(
+    rep("Neg", 2*length(subjList)), 
+    rep("Neu", 2*length(subjList))
+  )
+  df_long$Mem <- c(
+    rep("LGI", length(subjList)),
+    rep("LDI", length(subjList)),
+    rep("LGI", length(subjList)),
+    rep("LDI", length(subjList))
+  )
   df_long$Value <- c(
     df_mem$NegLGI, 
-    df_mem$NegLDI, 
-    df_mem$NeuLGI, 
+    df_mem$NegLDI,
+    df_mem$NeuLGI,
     df_mem$NeuLDI
   )
-  
+
   # stats
   stats_mem <- ezANOVA(df_long,
    dv = Value,
    wid = Subj,
    between = Group,
-   within = Meas,
+   within = c(Valence, Mem),
    type = "III"
   )
   
@@ -303,63 +308,63 @@ func_stat_mem <- function(df_afq, gType){
     file = paste0(memoryDir, "Stats_G", gType, "_MANOVA.txt")
   )
   
-  # post-hoc
-  intx_p <- stats_mem$`Sphericity Corrections`$`p[GG]`[2]
-  if(intx_p < 0.05){
-    h.man <- manova(
-      cbind(NeuLGI, NegLGI, NeuLDI, NegLDI) ~ Group, 
-      data = df_mem
-    )
-    capture.output(
-      summary.aov(h.man), 
-      file = paste0(memoryDir, "Stats_G", gType, "_post.txt")
-    )
-  }
-  
-  # Tukey for g3 NegLGI
-  if(gType == 3){
-    
-    group_fac <- as.numeric(df_mem$Group)
-    group_value <- vector()
-    for(val in group_fac){
-      group_value <- c(group_value, func_switch_plot(val, gType)[[2]])
-    }
-    df_mem$Group <- group_value
-  
-    h.lm <- lm(NegLGI ~ Group, data = df_mem)
-    h.av <- aov(h.lm)
-    capture.output(
-      TukeyHSD(h.av), 
-      file = paste0(memoryDir, "Stats_G", gType, "_tuk.txt")
-    )
-    
-    # make a plot
-    h_colors <- c(func_switch_plot("2", gType)[[1]], 
-      func_switch_plot("0", gType)[[1]], 
-      func_switch_plot("1", gType)[[1]]
-    )
-    post_comp <- list(c("High", "Low"))
-    ggboxplot(df_mem, 
-      y="NegLGI", 
-      x="Group", 
-      color="Group", 
-      palette = h_colors, 
-      add = "jitter",
-      title = "top"
-    ) +
-      stat_compare_means(comparisons = post_comp) +
-      ggtitle("Memory Performance on Negative Stimuli") +
-      rremove("legend") +
-      theme(text=element_text(family="Times New Roman", face="bold", size=16))
-    
-    ggsave(
-      paste0(memoryDir, "Plot_Box_G", gType, "_NegLGI.tiff"),
-      units = "in",
-      width = 6,
-      height = 6,
-      device = "tiff"
-    )
-  }
+  # # post-hoc
+  # intx_p <- stats_mem$`Sphericity Corrections`$`p[GG]`[2]
+  # if(intx_p < 0.05){
+  #   h.man <- manova(
+  #     cbind(NeuLGI, NegLGI, NeuLDI, NegLDI) ~ Group, 
+  #     data = df_mem
+  #   )
+  #   capture.output(
+  #     summary.aov(h.man), 
+  #     file = paste0(memoryDir, "Stats_G", gType, "_post.txt")
+  #   )
+  # }
+  # 
+  # # Tukey for g3 NegLGI
+  # if(gType == 3){
+  #   
+  #   group_fac <- as.numeric(df_mem$Group)
+  #   group_value <- vector()
+  #   for(val in group_fac){
+  #     group_value <- c(group_value, func_switch_plot(val, gType)[[2]])
+  #   }
+  #   df_mem$Group <- group_value
+  # 
+  #   h.lm <- lm(NegLGI ~ Group, data = df_mem)
+  #   h.av <- aov(h.lm)
+  #   capture.output(
+  #     TukeyHSD(h.av), 
+  #     file = paste0(memoryDir, "Stats_G", gType, "_tuk.txt")
+  #   )
+  #   
+  #   # make a plot
+  #   h_colors <- c(func_switch_plot("2", gType)[[1]], 
+  #     func_switch_plot("0", gType)[[1]], 
+  #     func_switch_plot("1", gType)[[1]]
+  #   )
+  #   post_comp <- list(c("High", "Low"))
+  #   ggboxplot(df_mem, 
+  #     y="NegLGI", 
+  #     x="Group", 
+  #     color="Group", 
+  #     palette = h_colors, 
+  #     add = "jitter",
+  #     title = "top"
+  #   ) +
+  #     stat_compare_means(comparisons = post_comp) +
+  #     ggtitle("Memory Performance on Negative Stimuli") +
+  #     rremove("legend") +
+  #     theme(text=element_text(family="Times New Roman", face="bold", size=16))
+  #   
+  #   ggsave(
+  #     paste0(memoryDir, "Plot_Box_G", gType, "_NegLGI.tiff"),
+  #     units = "in",
+  #     width = 6,
+  #     height = 6,
+  #     device = "tiff"
+  #   )
+  # }
 }
 
 
