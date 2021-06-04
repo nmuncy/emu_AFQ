@@ -10,6 +10,7 @@ library("ez")
 library("dplyr")
 library("lme4")
 library("ggpubr")
+library("lsr")
 
 
 ### Set Up
@@ -411,8 +412,8 @@ func_plot_gam <- function(model, tract, gType, df_tract){
     geom_smooth(mapping = aes(x=nodeID, y=fit, color=Group)) +
     ggtitle(h_title) +
     ylab("Fit FA") +
-    xlab("Node ID") +
-    theme(text=element_text(family="Times New Roman", face="bold", size=12))
+    xlab("Tract Node") +
+    theme(text=element_text(family="Times New Roman", face="bold", size=14))
   
   p + scale_color_manual(
     values = h_cols,
@@ -421,11 +422,11 @@ func_plot_gam <- function(model, tract, gType, df_tract){
   )
   
   ggsave(
-    paste0(plotDir_gam, "Plot_GAM_", tract, "_", "G", gType, ".tiff"),
+    paste0(plotDir_gam, "Plot_GAM_", tract, "_", "G", gType, ".png"),
     units = "in",
     width = 6,
     height = 6,
-    device = "tiff"
+    device = "png"
   )
 }
 
@@ -549,8 +550,8 @@ func_plot_diff_pair <- function(model, tract, gType, factorA, factorB){
   # This will make plots and write tables of sig
   #   node differences for GAM splines bx 2 factors (groups)
   
-  tiff(filename = paste0(
-    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, "_pair.tiff"), 
+  png(filename = paste0(
+    plotDir_gam, "Plot_Diff_", tract, "_", "G", gType, "_pair.png"), 
     width = 600, height = 600
   )
   
@@ -567,7 +568,7 @@ func_plot_diff_pair <- function(model, tract, gType, factorA, factorB){
                            xlab = "Tract Node",
                            cex.lab = 2,
                            cex.axis = 2,
-                           cex.main = 2.5,
+                           cex.main = 2,
                            cex.sub = 1.5),
                  file = paste0(tableDir, 
                                "Table_Diff_", 
@@ -1009,6 +1010,7 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max, pairAn, comp_list){
                     mem, "_", pairAn, ".txt"
       )
     )
+    etaSquared(fit.int)
     
     # make plots
     if(pairAn == "pair"){
@@ -1027,7 +1029,7 @@ func_stat_lm <- function(df_lm, tract, gType, avg_max, pairAn, comp_list){
 #   1) Con vs Anx (removed)
 #   2) Con vs GAD vs SAD
 #   3) PARS Low vs Med vs High
-groupType <- 2:3
+groupType <- 3
 tractList <- c("UNC_L", "UNC_R", "FA")
 
 # for spline comparisons, linear models,
