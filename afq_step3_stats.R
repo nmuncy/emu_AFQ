@@ -505,6 +505,25 @@ func_stat_gam <- function(tract, df_tract, gType){
     )
   )
   
+  if(tract == "FA"){
+    fit_gaussian <- bam(dti_fa ~ Group +
+                      Sex +
+                      s(nodeID, by=Group, k=40) +
+                      s(subjectID, bs="re"),
+                    data = df_tract,
+                    family = gaussian(link = "logit"),
+                    method = "REML")
+    
+    # gam.check(fit_beta, rep = 500)
+    capture.output(
+      summary(fit_gaussian), 
+      file = paste0(
+        statsDir_gam, "Stats_GAM-gaussian_", tract, "_", "G", gType, ".txt"
+      )
+    )
+  }
+  
+  
   # infoMessages('on')
   # compareML(fit_gamma, fit_beta)  # fit_gamma recommended
   capture.output(
@@ -514,16 +533,37 @@ func_stat_gam <- function(tract, df_tract, gType){
     )
   )
   
+  if(tract == "FA"){
+    capture.output(
+      compareML(fit_gamma, fit_gaussian), 
+      file = paste0(
+        statsDir_gam, "Stats_GAM-comp_gam-gaus_", tract, "_", "G", gType, ".txt"
+      )
+    )
+  }
+  
   
   ### Model tract with covariates
-  fit_cov_pds <- bam(dti_fa ~ Group +
-                       Sex +
-                       s(nodeID, by=Group, k=40) +
-                       s(PDS, by=Sex) +
-                       s(subjectID, bs="re"),
-                     data = df_tract,
-                     family = Gamma(link = "logit"),
-                     method = "REML")
+  if(tract == "FA"){
+    fit_cov_pds <- bam(dti_fa ~ Group +
+                         Sex +
+                         s(nodeID, by=Group, k=40) +
+                         s(PDS, by=Sex) +
+                         s(subjectID, bs="re"),
+                       data = df_tract,
+                       family = gaussian(link = "logit"),
+                       method = "REML")
+  }else{
+    fit_cov_pds <- bam(dti_fa ~ Group +
+                         Sex +
+                         s(nodeID, by=Group, k=40) +
+                         s(PDS, by=Sex) +
+                         s(subjectID, bs="re"),
+                       data = df_tract,
+                       family = Gamma(link = "logit"),
+                       method = "REML")
+  }
+  
   
   # gam.check(fit_cov_pds, rep = 500)
   capture.output(
@@ -534,12 +574,21 @@ func_stat_gam <- function(tract, df_tract, gType){
   )
   
   # Test cov model against gamma
-  capture.output(
-    compareML(fit_gamma, fit_cov_pds), 
-    file = paste0(
-      statsDir_gam, "Stats_GAM-comp_gam-cov_", tract, "_", "G", gType, ".txt"
+  if(tract == "FA"){
+    capture.output(
+      compareML(fit_gaussian, fit_cov_pds), 
+      file = paste0(
+        statsDir_gam, "Stats_GAM-comp_gaus-cov_", tract, "_", "G", gType, ".txt"
+      )
     )
-  )
+  }else{
+    capture.output(
+      compareML(fit_gamma, fit_cov_pds), 
+      file = paste0(
+        statsDir_gam, "Stats_GAM-comp_gam-cov_", tract, "_", "G", gType, ".txt"
+      )
+    )
+  }
   return(fit_cov_pds)
 }
 
