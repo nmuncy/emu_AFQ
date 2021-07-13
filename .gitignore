@@ -1,5 +1,6 @@
 .DS_Store
 .Rhistory
+analyses
 analyses/.DS_Store
 analyses/G1_gam_FA.Rda
 analyses/G1_gam_UNC_L.Rda
