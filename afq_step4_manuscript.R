@@ -21,10 +21,10 @@ num_female <- length(which(df_subset$Sex == 0))
 age_avg <- round(mean(df_subset$Age),2)
 age_sd <- round(sd(df_subset$Age),2)
 
-stat_age <- aov(Age ~ Group, data = df_subset)
+stat_age <- aov(Age ~ as.factor(Group), data = df_subset)
 summary(stat_age)
 etaSquared(stat_age)
 
-stat_pds <- aov(PDS ~ Group, data = df_subset)
+stat_pds <- aov(PDS ~ as.factor(Group), data = df_subset)
 summary(stat_pds)
 etaSquared(stat_pds)
