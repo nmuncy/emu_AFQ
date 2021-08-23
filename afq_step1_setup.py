@@ -1,14 +1,21 @@
-# %%
 import os
 import toml
 import json
 import sys
 
 
-# %%
+"""
+Notes:
+
+This script will edit the BIDs json file dataset_description
+    with values needed by AFQ. It will then edit the toml
+    file config with project-specific values.
+"""
+
+
 def main():
 
-    # receive args
+    # receive arguments
     code_dir = str(sys.argv[1])
     bids_dir = str(sys.argv[2])
     deriv_dir = str(sys.argv[3])
@@ -26,7 +33,7 @@ def main():
     with open(json_file, "w") as jf:
         json.dump(json_content, jf)
 
-    # write config.toml
+    # edit config.toml
     toml_file = os.path.join(code_dir, "config.toml")
 
     conf_dict = {

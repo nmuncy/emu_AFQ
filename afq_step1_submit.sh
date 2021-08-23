@@ -1,40 +1,57 @@
 #!/bin/bash
 
-# set up
-codeDir=~/compute/emu_AFQ
+# Notes:
+#
+# This script will copy and rename DWI data from a BIDS
+#   pre-process derivative directory to a new location.
+#
+# Then it will submit afq_step1_setup.py
 
-# vars for pre-processed data
-emuDir=/home/data/madlab/McMakin_EMUR01
-derivDir=${emuDir}/derivatives/dwi_preproc
-dsetDir=${emuDir}/dset
-refFile=${dsetDir}/dataset_description.json
+# Location of afq_step1_setup.py
+code_dir=~/compute/emu_AFQ
 
-# vars for AFQ work
-parDir=/scratch/madlab/emu_AFQ
-workDir=${parDir}/derivatives/dwi_preproc
+# Paths for pre-processed DWI data, uses BIDS directory organization.
+#   emu_dir = path to project parent directory
+emu_dir=/home/data/madlab/McMakin_EMUR01
+deriv_dir=${emu_dir}/derivatives/dwi_preproc
+dset_dir=${emu_dir}/dset
+ref_file=${dset_dir}/dataset_description.json
+
+# Variables for AFQ:
+#   parent_dir = parent output directory
+#   work_dir = output derivative directory
+#   sess = reference string
+#   run = reference string
+parent_dir=/scratch/madlab/emu_AFQ
+work_dir=${parent_dir}/derivatives/dwi_preproc
 sess=ses-S2
 run=run-1
 
-# get jsons
-mkdir -p $workDir
-cp $refFile $parDir
-cp $refFile $workDir
+# Get jsons
+mkdir -p $work_dir
+cp $ref_file $parent_dir
+cp $ref_file $work_dir
 
-# BIDs format pre-processed dwi data
-cd $derivDir
+# Copy, BIDs format pre-processed dwi data
+cd $deriv_dir
+
 for subj in sub-*; do
-    # subj=sub-4001
 
-    sourceDir=${derivDir}/${subj}/${sess}/dwi
-    outDir=${workDir}/${subj}/${sess}/dwi
+    source_dir=${deriv_dir}/${subj}/${sess}/dwi
+    out_dir=${work_dir}/${subj}/${sess}/dwi
 
-    if [ ! -f ${outDir}/${subj}_${sess}_dwi.nii.gz ]; then
-        mkdir -p $outDir
-        cp ${dsetDir}/${subj}/${sess}/dwi/${subj}_${sess}_${run}_dwi.bval ${outDir}/${subj}_${sess}_dwi.bval
-        cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.bvec ${outDir}/${subj}_${sess}_dwi.bvec
-        cp ${sourceDir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.nii.gz ${outDir}/${subj}_${sess}_dwi.nii.gz
+    if [ ! -f ${out_dir}/${subj}_${sess}_dwi.nii.gz ]; then
+
+        mkdir -p $out_dir
+
+        cp ${dset_dir}/${subj}/${sess}/dwi/${subj}_${sess}_${run}_dwi.bval \
+            ${out_dir}/${subj}_${sess}_dwi.bval
+        cp ${source_dir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.bvec \
+            ${out_dir}/${subj}_${sess}_dwi.bvec
+        cp ${source_dir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.nii.gz \
+            ${out_dir}/${subj}_${sess}_dwi.nii.gz
     fi
 done
 
 # submit python
-python ${codeDir}/afq_step1_setup.py $codeDir $parDir $workDir
+python ${code_dir}/afq_step1_setup.py $code_dir $parent_dir $work_dir
