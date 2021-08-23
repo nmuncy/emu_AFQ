@@ -373,7 +373,7 @@ calc_memory_stats <- function(df_afq, g_type){
 
 
 # GAM Functions ------
-func_plot_gam <- function(model, tract, g_type, df_tract){
+help_plot_gam <- function(model, tract, g_type, df_tract){
   
   ### --- Notes:
   #
@@ -433,7 +433,7 @@ func_plot_gam <- function(model, tract, g_type, df_tract){
   )
 }
 
-func_stat_gam <- function(tract, df_tract, g_type){
+calc_gam_stats <- function(tract, df_tract, g_type){
   
   ### --- Notes:
   #
@@ -521,7 +521,9 @@ func_stat_gam <- function(tract, df_tract, g_type){
     capture.output(
       summary(fit_gaussian), 
       file = paste0(
-        gam_stats_dir, "Stats_GAM-gaussian_", tract, "_", "G", g_type, ".txt"
+        gam_stats_dir, 
+        "Stats_GAM-gaussian_", 
+        tract, "_", "G", g_type, ".txt"
       )
     )
   }
@@ -532,7 +534,9 @@ func_stat_gam <- function(tract, df_tract, g_type){
   capture.output(
     compareML(fit_gamma, fit_beta), 
     file = paste0(
-      gam_stats_dir, "Stats_GAM-comp_gam-beta_", tract, "_", "G", g_type, ".txt"
+      gam_stats_dir, 
+      "Stats_GAM-comp_gam-beta_", 
+      tract, "_", "G", g_type, ".txt"
     )
   )
   
@@ -540,7 +544,9 @@ func_stat_gam <- function(tract, df_tract, g_type){
     capture.output(
       compareML(fit_gamma, fit_gaussian), 
       file = paste0(
-        gam_stats_dir, "Stats_GAM-comp_gam-gaus_", tract, "_", "G", g_type, ".txt"
+        gam_stats_dir, 
+        "Stats_GAM-comp_gam-gaus_", 
+        tract, "_", "G", g_type, ".txt"
       )
     )
   }
@@ -572,7 +578,9 @@ func_stat_gam <- function(tract, df_tract, g_type){
   capture.output(
     summary(fit_cov_pds), 
     file = paste0(
-      gam_stats_dir, "Stats_GAM-cov_", tract, "_", "G", g_type, ".txt"
+      gam_stats_dir, 
+      "Stats_GAM-cov_", 
+      tract, "_", "G", g_type, ".txt"
     )
   )
   
@@ -581,21 +589,25 @@ func_stat_gam <- function(tract, df_tract, g_type){
     capture.output(
       compareML(fit_gaussian, fit_cov_pds), 
       file = paste0(
-        gam_stats_dir, "Stats_GAM-comp_gaus-cov_", tract, "_", "G", g_type, ".txt"
+        gam_stats_dir, 
+        "Stats_GAM-comp_gaus-cov_", 
+        tract, "_", "G", g_type, ".txt"
       )
     )
   }else{
     capture.output(
       compareML(fit_gamma, fit_cov_pds), 
       file = paste0(
-        gam_stats_dir, "Stats_GAM-comp_gam-cov_", tract, "_", "G", g_type, ".txt"
+        gam_stats_dir, 
+        "Stats_GAM-comp_gam-cov_", 
+        tract, "_", "G", g_type, ".txt"
       )
     )
   }
   return(fit_cov_pds)
 }
 
-func_plot_diff_pair <- function(model, tract, g_type, factorA, factorB){
+plot_spline_diff_pair <- function(model, tract, g_type, factor_a, factor_b){
   
   ### --- Notes:
   #
@@ -603,30 +615,34 @@ func_plot_diff_pair <- function(model, tract, g_type, factorA, factorB){
   #   node differences for GAM splines bx 2 factors (groups)
   
   png(filename = paste0(
-    gam_plot_dir, "Plot_Diff_", tract, "_", "G", g_type, "_pair.png"), 
+      gam_plot_dir, "Plot_Diff_", tract, "_", "G", g_type, "_pair.png"
+    ), 
     width = 600, height = 600
   )
   
-  gA <- switch_plot_values(factorA, g_type)[[2]][1]
-  gB <- switch_plot_values(factorB, g_type)[[2]][1]
+  group_a <- switch_plot_values(factor_a, g_type)[[2]][1]
+  group_b <- switch_plot_values(factor_b, g_type)[[2]][1]
   
   par(mar=c(5,5,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
                            view="nodeID",
-                           comp=list(group=c(factorA, factorB)),
+                           comp=list(group=c(factor_a, factor_b)),
                            rm.ranef = T,
-                           main = paste0("Difference Scores, ", gA, "-", gB),
+                           main = paste0(
+                             "Difference Scores, ", group_a, "-", group_b
+                           ),
                            ylab = "Est. FA difference",
                            xlab = "Tract Node",
                            cex.lab = 2,
                            cex.axis = 2,
                            cex.main = 2,
-                           cex.sub = 1.5),
+                           cex.sub = 1.5
+                           ),
                  file = paste0(table_dir, 
                                "Table_Diff_", 
                                tract, "_", "G",
                                g_type, "_",
-                               factorA, factorB,
+                               factor_a, factor_b,
                                ".txt"
                  )
   )
@@ -634,7 +650,7 @@ func_plot_diff_pair <- function(model, tract, g_type, factorA, factorB){
   dev.off()
 }
 
-func_plot_diff_anova <- function(model, tract, g_type){
+plot_split_diff_mult <- function(model, tract, g_type){
   
   ### --- Notes:
   #
@@ -649,16 +665,18 @@ func_plot_diff_anova <- function(model, tract, g_type){
     height = 600
   )
   
-  gA <- switch_plot_values("0", g_type)[[2]][1]
-  gB <- switch_plot_values("1", g_type)[[2]][1]
-  gC <- switch_plot_values("2", g_type)[[2]][1]
+  group_a <- switch_plot_values("0", g_type)[[2]][1]
+  group_b <- switch_plot_values("1", g_type)[[2]][1]
+  group_c <- switch_plot_values("2", g_type)[[2]][1]
   
   par(mfrow=c(1,3), mar=c(5,6,4,2), family="Times New Roman")
   capture.output(plot_diff(model,
                            view="nodeID",
                            comp=list(group=c("0", "1")),
                            rm.ranef = T,
-                           main = paste0("Difference Scores, ", gA, "-", gB),
+                           main = paste0(
+                             "Difference Scores, ", group_a, "-", group_b
+                           ),
                            ylab = "Est. FA difference",
                            xlab = "Tract Node",
                            cex.lab = 3,
@@ -677,7 +695,9 @@ func_plot_diff_anova <- function(model, tract, g_type){
                            view="nodeID",
                            comp=list(group=c("0", "2")),
                            rm.ranef = T,
-                           main = paste0("Difference Scores, ", gA, "-", gC),
+                           main = paste0(
+                             "Difference Scores, ", group_a, "-", group_c
+                           ),
                            ylab = "",
                            xlab = "Tract Node",
                            cex.lab = 3,
@@ -695,7 +715,9 @@ func_plot_diff_anova <- function(model, tract, g_type){
                            view="nodeID",
                            comp=list(group=c("1", "2")),
                            rm.ranef = T,
-                           main = paste0("Difference Scores, ", gB, "-", gC),
+                           main = paste0(
+                             "Difference Scores, ", group_b, "-", group_c
+                           ),
                            ylab = "",
                            xlab = "Tract Node",
                            cex.lab = 3,
@@ -712,7 +734,7 @@ func_plot_diff_anova <- function(model, tract, g_type){
   dev.off()
 }
 
-func_mkdf_diff_pair <- function(model, factorA, factorB){
+make_spline_diff_pair_df <- function(model, factor_a, factor_b){
   
   ### --- Notes:
   #
@@ -721,16 +743,16 @@ func_mkdf_diff_pair <- function(model, factorA, factorB){
   
   df_pair <- plot_diff(model,
                    view="nodeID",
-                   comp=list(group=c(factorA, factorB)),
+                   comp=list(group=c(factor_a, factor_b)),
                    rm.ranef = T,
                    plot = F)
   
   colnames(df_pair) <- c(colnames(df_pair[,1:4]), "Comp")
-  df_pair$Comp <- paste0(factorA, factorB)
+  df_pair$Comp <- paste0(factor_a, factor_b)
   return(df_pair)
 }
 
-func_mkdf_diff_anova <- function(model){
+make_spline_diff_mult_df <- function(model){
   
   ### --- Notes:
   #
@@ -767,7 +789,7 @@ func_mkdf_diff_anova <- function(model){
   return(df_out)
 }
 
-func_stat_diff <- function(model, tract, g_type, pairAn, comp_list){
+calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list){
   
   ### --- Notes:
   #
@@ -785,65 +807,73 @@ func_stat_diff <- function(model, tract, g_type, pairAn, comp_list){
   # Returns list of nodes, max node
   
   # make plots and tables
-  if(pairAn == "pair"){
-    func_plot_diff_pair(model, tract, g_type, comp_list[1], comp_list[2])
-  }else if(pairAn == "anova"){
-    func_plot_diff_anova(model, tract, g_type)
+  if(pair_anov == "pair"){
+    plot_spline_diff_pair(model, tract, g_type, comp_list[1], comp_list[2])
+  }else if(pair_anov == "anova"){
+    plot_split_diff_mult(model, tract, g_type)
   }
   
   # get plot_diff data frames
-  if(pairAn == "pair"){
-    df_estDiff <- func_mkdf_diff_pair(model, comp_list[1], comp_list[2])
-  }else if(pairAn == "anova"){
-    df_estDiff <- func_mkdf_diff_anova(model)
+  if(pair_anov == "pair"){
+    df_est_diff <- make_spline_diff_pair_df(model, comp_list[1], comp_list[2])
+  }else if(pair_anov == "anova"){
+    df_est_diff <- make_spline_diff_mult_df(model)
   }
   
-  # determine where nodes differ, anova
-  #   looks for nodes that differ bx ALL groups
-  node_list <- unique(df_estDiff$nodeID)
-  diffList <- vector()
+  # determine where nodes differ, "anova" looks
+  #   for nodes that differ bx ALL groups
+  node_list <- unique(df_est_diff$nodeID)
+  diff_list <- vector()
+  
   for(node in node_list){
-    ind_node <- which(df_estDiff$nodeID == node)
-    if(pairAn == "pair"){
-      h_est <- abs(df_estDiff[ind_node[1],]$est)
-      h_ci <- df_estDiff[ind_node[1],]$CI
+    
+    ind_node <- which(df_est_diff$nodeID == node)
+    
+    if(pair_anov == "pair"){
+      
+      h_est <- abs(df_est_diff[ind_node[1],]$est)
+      h_ci <- df_est_diff[ind_node[1],]$CI
+      
       if((h_est - h_ci) > 0){
-        diffList <- c(diffList, node)
+        diff_list <- c(diff_list, node)
       }
-    }else if(pairAn == "anova"){
+    }else if(pair_anov == "anova"){
+      
       if(
-        (abs(df_estDiff[ind_node[1],]$est) - df_estDiff[ind_node[1],]$CI) > 0 &
-        (abs(df_estDiff[ind_node[2],]$est) - df_estDiff[ind_node[2],]$CI) > 0 &
-        (abs(df_estDiff[ind_node[3],]$est) - df_estDiff[ind_node[3],]$CI) > 0
+        (abs(df_est_diff[ind_node[1],]$est) - df_est_diff[ind_node[1],]$CI) > 0 &
+        (abs(df_est_diff[ind_node[2],]$est) - df_est_diff[ind_node[2],]$CI) > 0 &
+        (abs(df_est_diff[ind_node[3],]$est) - df_est_diff[ind_node[3],]$CI) > 0
       ){
-        diffList <- c(diffList, node)
+        diff_list <- c(diff_list, node)
       }
     }
   }
   
-  if(length(diffList) == 0){
+  if(length(diff_list) == 0){
     return(NA)
     stop
   }
   
   # find node of max difference
-  if(pairAn == "pair"){
+  if(pair_anov == "pair"){
     
-    h_df <- subset(df_estDiff, nodeID %in% diffList)
+    h_df <- subset(df_est_diff, nodeID %in% diff_list)
     ind_max <- which(abs(h_df$est) == max(abs(h_df$est)))
     node_max <- h_df[ind_max,]$nodeID
     
-  }else if(pairAn == "anova"){
+  }else if(pair_anov == "anova"){
+    
     f_sum <- function(x){
-      sum(abs(df_estDiff[which(df_estDiff$nodeID == x),]$est))
+      sum(abs(df_est_diff[which(df_est_diff$nodeID == x),]$est))
     }
-    h_sum <- sapply(diffList, f_sum)
-    names(h_sum) <- diffList
+    
+    h_sum <- sapply(diff_list, f_sum)
+    names(h_sum) <- diff_list
     h_max <- which(h_sum == max(h_sum))
     node_max <- as.numeric(names(h_sum[h_max]))
   }
   
-  return(list(diffList, node_max))
+  return(list(diff_list, node_max))
 }  
 
 
@@ -885,7 +915,7 @@ func_mkdf_lm <- function(df_tract, node_list, g_type, avg_max){
   return(df_out)
 }
 
-func_plot_lm_pair <- function(df_plot, avg_max, mem, factorA, factorB){
+func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
   
   ### --- Notes:
   #
@@ -893,18 +923,18 @@ func_plot_lm_pair <- function(df_plot, avg_max, mem, factorA, factorB){
   
   # determine labels
   h_labels <- c(
-    switch_plot_values(factorA, g_type)[[2]][1], 
-    switch_plot_values(factorB, g_type)[[2]][1]
+    switch_plot_values(factor_a, g_type)[[2]][1], 
+    switch_plot_values(factor_b, g_type)[[2]][1]
   )
   h_tract <- switch_tract_name(tract)
   
   # set up for plot A
-  plot1.x <- df_plot[which(df_plot$group == as.numeric(factorA)),]$FAvalue
-  plot1.y <- df_plot[which(df_plot$group == as.numeric(factorA)),]$MemScore
+  plot1.x <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$FAvalue
+  plot1.y <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$MemScore
   
   # set up for plot B
-  plot2.x <- df_plot[which(df_plot$group == as.numeric(factorB)),]$FAvalue
-  plot2.y <- df_plot[which(df_plot$group == as.numeric(factorB)),]$MemScore
+  plot2.x <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$FAvalue
+  plot2.y <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$MemScore
   
   # omni title
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
@@ -1021,7 +1051,7 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
   par(mfrow=c(1,1))
 }
 
-func_stat_lm <- function(df_lm, tract, g_type, avg_max, pairAn, comp_list){
+func_stat_lm <- function(df_lm, tract, g_type, avg_max, pair_anov, comp_list){
   
   ### --- Notes:
   #
@@ -1046,7 +1076,7 @@ func_stat_lm <- function(df_lm, tract, g_type, avg_max, pairAn, comp_list){
     df_mem$MemScore <- df_lm[,ind_mem]
     
     # subset for pairwise comparison
-    if(pairAn == "pair"){
+    if(pair_anov == "pair"){
       df_mem <- df_mem[which(
         df_mem$group == comp_list[1] | df_mem$group == comp_list[2]
       ),]
@@ -1059,15 +1089,15 @@ func_stat_lm <- function(df_lm, tract, g_type, avg_max, pairAn, comp_list){
       file = paste0(lm_stats_dir,
                     "Stats_LM-", avg_max, "_", 
                     tract, "_G", g_type, "_", 
-                    mem, "_", pairAn, ".txt"
+                    mem, "_", pair_anov, ".txt"
       )
     )
     etaSquared(fit.int)
     
     # make plots
-    if(pairAn == "pair"){
+    if(pair_anov == "pair"){
       func_plot_lm_pair(df_mem, avg_max, mem, comp_list[1], comp_list[2])
-    }else if(pairAn == "anova"){
+    }else if(pair_anov == "anova"){
       func_plot_lm_anova(df_mem, avg_max, mem, g_type)
     }
   }
@@ -1087,7 +1117,7 @@ tract_list <- c("UNC_L", "UNC_R", "FA")
 # for spline comparisons, linear models,
 #   determine whether to compare all (anova)
 #   or a pair. If pair, set factors as string.
-pairAn <- "pair"
+pair_anov <- "pair"
 g2_pairList <- c("0", "2")
 g3_pairList <- c("0", "2")
 
@@ -1109,7 +1139,7 @@ for(g_type in groupType){
   calc_memory_stats(df_afq, g_type)
   
   # get comp list
-  if(pairAn == "pair"){
+  if(pair_anov == "pair"){
     h_var <- paste0("g", g_type, "_pairList")
     comp_list <- get(h_var)
   }
@@ -1124,19 +1154,19 @@ for(g_type in groupType){
     gamFile <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
     
     if( ! file.exists(gamFile)){
-      h_gam <- func_stat_gam(tract, df_tract, g_type)
+      h_gam <- calc_gam_stats(tract, df_tract, g_type)
       saveRDS(h_gam, file=gamFile)
       rm(h_gam)
     }
     
     gam_model <- readRDS(gamFile)
-    func_plot_gam(gam_model, tract, g_type, df_tract)
+    help_plot_gam(gam_model, tract, g_type, df_tract)
     
     # determine nodes of group differences
     #   Use "anova" to compare bx >2 groups, and note
     #     that differences between splines will be for
     #     nodes which differed between ALL groups
-    node_list <- func_stat_diff(gam_model, tract, g_type, pairAn, comp_list)
+    node_list <- calc_spline_diff(gam_model, tract, g_type, pair_anov, comp_list)
     
     # deal w/no differences
     if(is.na(node_list)){
@@ -1146,11 +1176,11 @@ for(g_type in groupType){
     # avg lm
     avg_nList <- node_list[[1]]
     df_avg <- func_mkdf_lm(df_tract, avg_nList, g_type, "Avg")
-    func_stat_lm(df_avg, tract, g_type, "Avg", pairAn, comp_list)
+    func_stat_lm(df_avg, tract, g_type, "Avg", pair_anov, comp_list)
     
     # # max lm
     # max_nList <- node_list[[2]]
     # df_max <- func_mkdf_lm(df_tract, max_nList, g_type, "Max")
-    # func_stat_lm(df_max, tract, g_type, "Max", pairAn, comp_list)
+    # func_stat_lm(df_max, tract, g_type, "Max", pair_anov, comp_list)
   }
 }
