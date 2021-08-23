@@ -22,18 +22,19 @@ library("lsr")
 #
 # Potential groupings:
 #   1) Control vs Anxious
-#   2) Low vs Med vs High Pars6 Score (currently used)
-#   3) Control vs GAD vs SAD
+#   2) Control vs GAD vs SAD
+#   3) Low vs Med vs High Pars6 Score (currently used)
 #
 # For testing group spline differences, one pair can be
 #   tested with a single test ("pair"), or all pair 
-#   permutations can be compaired ("anova"). "Pair" is
+#   permutations can be compaired ("mult"). "Pair" is
 #   currently used.
 
 
 # Set Up ------
 #
-# Various input, output paths/directories
+# Various input, output paths/directories.
+#   Final forward-slash included for simplified pasting.
 
 data_dir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 private_dir <- "/Users/nmuncy/Projects/emu_data/emu_private/"
@@ -47,6 +48,69 @@ memory_dir <- paste0(data_dir, "memory/")
 
 
 # General Functions ------
+find_group_1 <- function(search_str, df_adis, ind_adis){
+  
+  ### --- Notes:
+  #
+  # Determine group for grouping type 1:
+  #   1 = adis has "Anxiety" or "Phobia"
+  #   0 = adis has "None"
+  #
+  # TODO could be update so 0 is catch all
+  
+  if (
+    sum(grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])) != 0
+  ) {
+    return(1)
+  } else if (length(grep("None", df_adis[ind_adis, ])) != 0) {
+    return(0)
+  }
+}
+
+find_group_2 <- function(search_str, df_adis, ind_adis) {
+  
+  ### --- Notes:
+  #
+  # 1 = GAD is diagnosis 1, or GAD is diagnosed while SAD is not
+  #   diagnosis 1.
+  # 2 = SAD, contains search string
+  # 0 = None
+  
+  if (
+    grepl("Gen", df_adis[ind_adis, ]$Diagnosis.1) == T |
+    (sum(grep("Gen", df_adis[ind_adis, ])) != 0 &
+     sum(
+       grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])
+     ) == 0
+    )
+  ) {
+    return(1)
+  } else if (
+    sum(grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])) != 0
+  ) {
+    return(2)
+  } else if (length(grep("None", df_adis[ind_adis, ])) != 0) {
+    return(0)
+  }
+}
+
+find_group_3 <- function(pars_score) {
+  
+  ### --- Notes: 
+  #
+  # Low (0): pars6 <= 3
+  # Med (1): 3 < pars6 < 13
+  # High (2): pars6 > 12
+  
+  if (pars_score <= 3) {
+    return(0)
+  } else if (pars_score > 3 & pars_score < 13) {
+    return(1)
+  } else if (pars_score > 12) {
+    return(2)
+  }
+}
+
 make_master_df <- function(g_type) {
 
   ### --- Notes:
@@ -95,61 +159,24 @@ make_master_df <- function(g_type) {
     # determine subj indices
     ind_afq <- which(df_afq$subjectID == subj)
     ind_full <- which(df_full$src_subject_id == subj)
+    ind_full <- ind_full[1]
     ind_pds <- which(df_pds$emu_study_id == subj)
     ind_adis <- which(df_adis$Participant.ID == subj)
 
     # get pars
     h_anx <- df_full[ind_full, ]$pars_6
 
-    # Determine group in one of three ways:
-    #   a) 0 = con, 1 = anx
-    #       skip subj when not anx/phobia/control
-    #       (not used)
-    #   b) 0 = con, 1 = gad, 2 = social/separation
-    #       1 = GAD in dx.1, or dx GAD but SAD not dx.1
-    #   c) 0 = low, 1 = med, 2 = high pars
-    #       low=0-3, med=4-12, high>12
+    # determine group factor:
     if (g_type == 1) {
-      h_search <- c("Anxiety", "Phobia")
-
-      if (
-        sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis, ])) != 0
-      ) {
-        h_group <- 1
-      } else if (length(grep("None", df_adis[ind_adis, ])) != 0) {
-        h_group <- 0
-      } else {
-        next
-      }
+      search_str <- c("Anxiety", "Phobia")
+      h_group <- find_group_1(search_str, df_adis, ind_adis)
+      
     } else if (g_type == 2) {
-      h_search <- c("Separation", "Social")
-
-      if (
-        grepl("Gen", df_adis[ind_adis, ]$Diagnosis.1) == T |
-          (sum(grep("Gen", df_adis[ind_adis, ])) != 0 &
-            sum(
-              grep(paste(h_search, collapse = "|"), df_adis[ind_adis, ])
-            ) == 0
-          )
-      ) {
-        h_group <- 1
-      } else if (
-        sum(grep(paste(h_search, collapse = "|"), df_adis[ind_adis, ])) != 0
-      ) {
-        h_group <- 2
-      } else if (length(grep("None", df_adis[ind_adis, ])) != 0) {
-        h_group <- 0
-      } else {
-        next
-      }
+      search_str <- c("Separation", "Social")
+      h_group <- find_group_2(search_str, df_adis, ind_adis)
+      
     } else if (g_type == 3) {
-      if (h_anx <= 3) {
-        h_group <- 0
-      } else if (h_anx > 3 & h_anx < 13) {
-        h_group <- 1
-      } else if (h_anx > 12) {
-        h_group <- 2
-      }
+      h_group <- find_group_3(h_anx)
     }
 
     # get pds
@@ -158,26 +185,28 @@ make_master_df <- function(g_type) {
     # get age, sex
     h_age <- df_full[ind_full, ]$pinf_age
     h_sex <- substr(df_full[ind_full, ]$sex, 1, 1)
-    if (h_sex == "f") {
+    if (h_sex == "F") {
       h_sex_f <- 0
-    } else if (h_sex == "m") {
+    } else if (h_sex == "M") {
       h_sex_f <- 1
     }
 
     # get Beh counts
-    neg_num_hit <- df_full[ind_full, ]$negtarght_cnt_1WK
-    neg_num_miss <- df_full[ind_full, ]$negtargms_cnt_1WK
-    neg_num_lcr <- df_full[ind_full, ]$neglurecr_cnt_1WK
-    neg_num_lfa <- df_full[ind_full, ]$neglurefa_cnt_1WK
-    neg_num_fcr <- df_full[ind_full, ]$negfoilcr_cnt_1WK
-    neg_num_ffa <- df_full[ind_full, ]$negfoilfa_cnt_1WK
+    ind_full_mem <- which(df_full$src_subject_id == subj)
+    ind_full_mem <- ind_full_mem[3]
+    neg_num_hit <- df_full[ind_full_mem, ]$negtarght_cnt_1WK
+    neg_num_miss <- df_full[ind_full_mem, ]$negtargms_cnt_1WK
+    neg_num_lcr <- df_full[ind_full_mem, ]$neglurecr_cnt_1WK
+    neg_num_lfa <- df_full[ind_full_mem, ]$neglurefa_cnt_1WK
+    neg_num_fcr <- df_full[ind_full_mem, ]$negfoilcr_cnt_1WK
+    neg_num_ffa <- df_full[ind_full_mem, ]$negfoilfa_cnt_1WK
 
-    neu_num_hit <- df_full[ind_full, ]$neutarght_cnt_1WK
-    neu_num_miss <- df_full[ind_full, ]$neutargms_cnt_1WK
-    neu_num_lcr <- df_full[ind_full, ]$neulurecr_cnt_1WK
-    neu_num_lfa <- df_full[ind_full, ]$neulurefa_cnt_1WK
-    neu_num_fcr <- df_full[ind_full, ]$neufoilcr_cnt_1WK
-    neu_num_ffa <- df_full[ind_full, ]$neufoilfa_cnt_1WK
+    neu_num_hit <- df_full[ind_full_mem, ]$neutarght_cnt_1WK
+    neu_num_miss <- df_full[ind_full_mem, ]$neutargms_cnt_1WK
+    neu_num_lcr <- df_full[ind_full_mem, ]$neulurecr_cnt_1WK
+    neu_num_lfa <- df_full[ind_full_mem, ]$neulurefa_cnt_1WK
+    neu_num_fcr <- df_full[ind_full_mem, ]$neufoilcr_cnt_1WK
+    neu_num_ffa <- df_full[ind_full_mem, ]$neufoilfa_cnt_1WK
 
     # adjust 0 counts
     for (check in c(
@@ -306,8 +335,7 @@ calc_memory_stats <- function(df_afq, g_type) {
   df_mem <- as.data.frame(df_afq[ind_mem, ])
   subj_list <- df_mem$subjectID
 
-  # DF for group * Neg/Neu Detect/Generalize indices
-  #   update, only do lgi
+  # DF for group x Neg/Neu x LGI/LDI
   df_long <- as.data.frame(matrix(NA, nrow = 4 * length(subj_list), ncol = 5))
   colnames(df_long) <- c("subj", "group", "valence", "memory", "value")
 
@@ -330,7 +358,7 @@ calc_memory_stats <- function(df_afq, g_type) {
     df_mem$neu_ldi
   )
 
-  # stats
+  # Stats 1: omnibus model
   stats_mem <- ezANOVA(df_long,
     dv = value,
     wid = subj,
@@ -338,83 +366,82 @@ calc_memory_stats <- function(df_afq, g_type) {
     within = c(valence, memory),
     type = "III"
   )
-
-  # write
   capture.output(
     stats_mem,
     file = paste0(memory_dir, "Stats_G", g_type, "_MANOVA.txt")
   )
 
-  # # post-hoc
-  # intx_p <- stats_mem$`Sphericity Corrections`$`p[GG]`[2]
-  # if(intx_p < 0.05){
-  #   h.man <- manova(
-  #     cbind(neu_lgi, neg_lgi, neu_ldi, neg_ldi) ~ group,
-  #     data = df_mem
-  #   )
-  #   capture.output(
-  #     summary.aov(h.man),
-  #     file = paste0(memory_dir, "Stats_G", g_type, "_post.txt")
-  #   )
-  # }
-  #
-  # # Tukey for g3 neg_lgi
-  # if(g_type == 3){
-  #
-  #   group_fac <- as.numeric(df_mem$group)
-  #   group_value <- vector()
-  #   for(val in group_fac){
-  #     group_value <- c(group_value, switch_plot_values(val, g_type)[[2]])
-  #   }
-  #   df_mem$group <- group_value
-  #
-  #   h.lm <- lm(neg_lgi ~ group, data = df_mem)
-  #   h.av <- aov(h.lm)
-  #   capture.output(
-  #     TukeyHSD(h.av),
-  #     file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
-  #   )
-  #
-  #   # make a plot
-  #   h_colors <- c(switch_plot_values("2", g_type)[[1]],
-  #     switch_plot_values("0", g_type)[[1]],
-  #     switch_plot_values("1", g_type)[[1]]
-  #   )
-  #   post_comp <- list(c("High", "Low"))
-  #   ggboxplot(df_mem,
-  #     y="neg_lgi",
-  #     x="group",
-  #     color="group",
-  #     palette = h_colors,
-  #     add = "jitter",
-  #     title = "top"
-  #   ) +
-  #     stat_compare_means(comparisons = post_comp) +
-  #     ggtitle("Memory Performance on Negative Stimuli") +
-  #     rremove("legend") +
-  #     theme(text=element_text(family="Times New Roman", face="bold", size=16))
-  #
-  #   ggsave(
-  #     paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.tiff"),
-  #     units = "in",
-  #     width = 6,
-  #     height = 6,
-  #     device = "tiff"
-  #   )
-  # }
+  # Stats 2: investigate mem x valence intx 
+  #   detected in Stats 1 when group_type = 3
+  h_man <- manova(
+    cbind(neu_lgi, neg_lgi, neu_ldi, neg_ldi) ~ group,
+    data = df_mem
+  )
+  capture.output(
+    summary.aov(h_man),
+    file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval.txt")
+  )
+  
+  # Stats 3: Tukey for g3 neg_lgi detected 
+  #   in Stats 2 when group_type = 3
+  group_fac <- as.numeric(df_mem$group)
+  
+  group_value <- vector()
+  for(val in group_fac){
+    group_value <- c(group_value, switch_plot_values(val, g_type)[[2]])
+  }
+  df_mem$group <- group_value
+
+  h_lm <- lm(neg_lgi ~ group, data = df_mem)
+  h_av <- aov(h_lm)
+  capture.output(
+    TukeyHSD(h_av),
+    file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
+  )
+
+  # make a plot
+  h_colors <- c(switch_plot_values("2", g_type)[[1]],
+    switch_plot_values("0", g_type)[[1]],
+    switch_plot_values("1", g_type)[[1]]
+  )
+  post_comp <- list(c("High", "Low"))
+  ggboxplot(df_mem,
+    y="neg_lgi",
+    x="group",
+    color="group",
+    palette = h_colors,
+    add = "jitter",
+    title = "top"
+  ) +
+    xlab("PARS6 Group") +
+    ylab("Neg LGI") +
+    stat_compare_means(comparisons = post_comp) +
+    ggtitle("eMST Group Memory Performance") +
+    rremove("legend") +
+    theme(text=element_text(family="Times New Roman", face="bold", size=16))
+
+  ggsave(
+    paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.png"),
+    units = "in",
+    width = 6,
+    height = 6,
+    device = "png"
+  )
+  
 }
 
 
 # GAM Functions ------
-help_plot_gam <- function(model, tract, g_type, df_tract) {
+plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
 
   ### --- Notes:
   #
-  # Will plot the GAM model of dti data
+  # Will plot smoothed splines produced by GAM
+  #   by creating a prediction dataframe.
 
   # plot
   df_pred <- predict.bam(
-    model,
+    gam_model,
     exclude_terms = c("pds", "sex", "subjectID"),
     values = list(pds = NULL, sex = NULL),
     se.fit = T,
@@ -518,9 +545,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     sex +
     s(nodeID, by = group, k = 40) +
     s(subjectID, bs = "re"),
-  data = df_tract,
-  family = Gamma(link = "logit"),
-  method = "REML"
+    data = df_tract,
+    family = Gamma(link = "logit"),
+    method = "REML"
   )
 
   # gam.check(fit_gamma, rep = 500)
@@ -535,9 +562,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     sex +
     s(nodeID, by = group, k = 40) +
     s(subjectID, bs = "re"),
-  data = df_tract,
-  family = betar(link = "logit"),
-  method = "REML"
+    data = df_tract,
+    family = betar(link = "logit"),
+    method = "REML"
   )
 
   # gam.check(fit_beta, rep = 500)
@@ -553,9 +580,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       sex +
       s(nodeID, by = group, k = 40) +
       s(subjectID, bs = "re"),
-    data = df_tract,
-    family = gaussian(link = "logit"),
-    method = "REML"
+      data = df_tract,
+      family = gaussian(link = "logit"),
+      method = "REML"
     )
 
     # gam.check(fit_beta, rep = 500)
@@ -600,9 +627,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       s(nodeID, by = group, k = 40) +
       s(pds, by = sex) +
       s(subjectID, bs = "re"),
-    data = df_tract,
-    family = gaussian(link = "logit"),
-    method = "REML"
+      data = df_tract,
+      family = gaussian(link = "logit"),
+      method = "REML"
     )
   } else {
     fit_cov_pds <- bam(dti_fa ~ group +
@@ -610,9 +637,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       s(nodeID, by = group, k = 40) +
       s(pds, by = sex) +
       s(subjectID, bs = "re"),
-    data = df_tract,
-    family = Gamma(link = "logit"),
-    method = "REML"
+      data = df_tract,
+      family = Gamma(link = "logit"),
+      method = "REML"
     )
   }
 
@@ -650,7 +677,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   return(fit_cov_pds)
 }
 
-plot_spline_diff_pair <- function(model, tract, g_type, factor_a, factor_b) {
+plot_spline_diff_pair <- function(gam_model, tract, g_type, factor_a, factor_b) {
 
   ### --- Notes:
   #
@@ -668,44 +695,44 @@ plot_spline_diff_pair <- function(model, tract, g_type, factor_a, factor_b) {
   group_b <- switch_plot_values(factor_b, g_type)[[2]][1]
 
   par(mar = c(5, 5, 4, 2), family = "Times New Roman")
-  capture.output(plot_diff(model,
-    view = "nodeID",
-    comp = list(group = c(factor_a, factor_b)),
-    rm.ranef = T,
-    main = paste0(
-      "Difference Scores, ", group_a, "-", group_b
+  capture.output(plot_diff(gam_model,
+      view = "nodeID",
+      comp = list(group = c(factor_a, factor_b)),
+      rm.ranef = T,
+      main = paste0(
+        "Difference Scores, ", group_a, "-", group_b
+      ),
+      ylab = "Est. FA difference",
+      xlab = "Tract Node",
+      cex.lab = 2,
+      cex.axis = 2,
+      cex.main = 2,
+      cex.sub = 1.5
     ),
-    ylab = "Est. FA difference",
-    xlab = "Tract Node",
-    cex.lab = 2,
-    cex.axis = 2,
-    cex.main = 2,
-    cex.sub = 1.5
-  ),
-  file = paste0(
-    table_dir,
-    "Table_Diff_",
-    tract, "_", "G",
-    g_type, "_",
-    factor_a, factor_b,
-    ".txt"
-  )
+    file = paste0(
+      table_dir,
+      "Table_Diff_",
+      tract, "_", "G",
+      g_type, "_",
+      factor_a, factor_b,
+      ".txt"
+    )
   )
   par(mar = c(5, 4, 4, 2))
   dev.off()
 }
 
-plot_split_diff_mult <- function(model, tract, g_type) {
+plot_split_diff_mult <- function(gam_model, tract, g_type) {
 
   ### --- Notes:
   #
   # This will draw plots and write tables of sig
   #   node differences for GAM when group style=2
 
-  tiff(
+  png(
     filename = paste0(
       gam_plot_dir, "Plot_Diff_",
-      tract, "_", "G", g_type, "_anova.tiff"
+      tract, "_", "G", g_type, "_mult.png"
     ),
     width = 2000,
     height = 600
@@ -716,7 +743,7 @@ plot_split_diff_mult <- function(model, tract, g_type) {
   group_c <- switch_plot_values("2", g_type)[[2]][1]
 
   par(mfrow = c(1, 3), mar = c(5, 6, 4, 2), family = "Times New Roman")
-  capture.output(plot_diff(model,
+  capture.output(plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("0", "1")),
     rm.ranef = T,
@@ -739,7 +766,7 @@ plot_split_diff_mult <- function(model, tract, g_type) {
   )
 
   par(mar = c(5, 3, 4, 2))
-  capture.output(plot_diff(model,
+  capture.output(plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("0", "2")),
     rm.ranef = T,
@@ -761,7 +788,7 @@ plot_split_diff_mult <- function(model, tract, g_type) {
   )
   )
 
-  capture.output(plot_diff(model,
+  capture.output(plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("1", "2")),
     rm.ranef = T,
@@ -786,14 +813,14 @@ plot_split_diff_mult <- function(model, tract, g_type) {
   dev.off()
 }
 
-make_spline_diff_pair_df <- function(model, factor_a, factor_b) {
+make_spline_diff_pair_df <- function(gam_model, factor_a, factor_b) {
 
   ### --- Notes:
   #
   # Returns a dataframe of difference
   #   scores for each node.
 
-  df_pair <- plot_diff(model,
+  df_pair <- plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c(factor_a, factor_b)),
     rm.ranef = T,
@@ -805,14 +832,14 @@ make_spline_diff_pair_df <- function(model, factor_a, factor_b) {
   return(df_pair)
 }
 
-make_spline_diff_mult_df <- function(model) {
+make_spline_diff_mult_df <- function(gam_model) {
 
   ### --- Notes:
   #
   # Returns a dataframe of difference
   #   scores for each node.
 
-  p01 <- plot_diff(model,
+  p01 <- plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("0", "1")),
     rm.ranef = T,
@@ -821,7 +848,7 @@ make_spline_diff_mult_df <- function(model) {
   colnames(p01) <- c(colnames(p01[, 1:4]), "Comp")
   p01$Comp <- "01"
 
-  p02 <- plot_diff(model,
+  p02 <- plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("0", "2")),
     rm.ranef = T,
@@ -830,7 +857,7 @@ make_spline_diff_mult_df <- function(model) {
   colnames(p02) <- c(colnames(p02[, 1:4]), "Comp")
   p02$Comp <- "02"
 
-  p12 <- plot_diff(model,
+  p12 <- plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("1", "2")),
     rm.ranef = T,
@@ -847,7 +874,7 @@ make_spline_diff_mult_df <- function(model) {
   return(df_out)
 }
 
-calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list) {
+calc_spline_diff <- function(gam_model, tract, g_type, tog_pair_mult, comp_list) {
 
   ### --- Notes:
   #
@@ -865,20 +892,20 @@ calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list) {
   # Returns list of nodes, max node
 
   # make plots and tables
-  if (pair_anov == "pair") {
-    plot_spline_diff_pair(model, tract, g_type, comp_list[1], comp_list[2])
-  } else if (pair_anov == "anova") {
-    plot_split_diff_mult(model, tract, g_type)
+  if (tog_pair_mult == "pair") {
+    plot_spline_diff_pair(gam_model, tract, g_type, comp_list[1], comp_list[2])
+  } else if (tog_pair_mult == "mult") {
+    plot_split_diff_mult(gam_model, tract, g_type)
   }
 
   # get plot_diff data frames
-  if (pair_anov == "pair") {
-    df_est_diff <- make_spline_diff_pair_df(model, comp_list[1], comp_list[2])
-  } else if (pair_anov == "anova") {
-    df_est_diff <- make_spline_diff_mult_df(model)
+  if (tog_pair_mult == "pair") {
+    df_est_diff <- make_spline_diff_pair_df(gam_model, comp_list[1], comp_list[2])
+  } else if (tog_pair_mult == "mult") {
+    df_est_diff <- make_spline_diff_mult_df(gam_model)
   }
 
-  # determine where nodes differ, "anova" looks
+  # determine where nodes differ, "mult" looks
   #   for nodes that differ bx ALL groups
   node_list <- unique(df_est_diff$nodeID)
   diff_list <- vector()
@@ -886,14 +913,14 @@ calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list) {
   for (node in node_list) {
     ind_node <- which(df_est_diff$nodeID == node)
 
-    if (pair_anov == "pair") {
+    if (tog_pair_mult == "pair") {
       h_est <- abs(df_est_diff[ind_node[1], ]$est)
       h_ci <- df_est_diff[ind_node[1], ]$CI
 
       if ((h_est - h_ci) > 0) {
         diff_list <- c(diff_list, node)
       }
-    } else if (pair_anov == "anova") {
+    } else if (tog_pair_mult == "mult") {
       if (
         (abs(df_est_diff[ind_node[1], ]$est) - df_est_diff[ind_node[1], ]$CI) > 0 &
           (abs(df_est_diff[ind_node[2], ]$est) - df_est_diff[ind_node[2], ]$CI) > 0 &
@@ -910,11 +937,11 @@ calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list) {
   }
 
   # find node of max difference
-  if (pair_anov == "pair") {
+  if (tog_pair_mult == "pair") {
     h_df <- subset(df_est_diff, nodeID %in% diff_list)
     ind_max <- which(abs(h_df$est) == max(abs(h_df$est)))
     node_max <- h_df[ind_max, ]$nodeID
-  } else if (pair_anov == "anova") {
+  } else if (tog_pair_mult == "mult") {
     f_sum <- function(x) {
       sum(abs(df_est_diff[which(df_est_diff$nodeID == x), ]$est))
     }
@@ -996,14 +1023,14 @@ plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
   x_title <- ifelse(avg_max == "avg", "Mean FA", "Max FA")
 
   # set up, draw
-  tiff(
+  png(
     filename = paste0(
       lm_plot_dir,
       "Plot_LM-",
       avg_max, "_",
       tract, "_G",
       g_type, "_",
-      mem, "_pair.tiff"
+      mem, "_pair.png"
     ),
     width = 8,
     height = 4,
@@ -1065,13 +1092,13 @@ plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
   )
   x_title <- ifelse(avg_max == "avg", "Mean FA", "Max FA")
 
-  tiff(
+  png(
     filename = paste0(
       lm_plot_dir, "Plot_LM-",
       avg_max, "_",
       tract, "_G",
       g_type, "_",
-      mem, "_anova.tiff"
+      mem, "_mult.png"
     ),
     width = 8,
     height = 4,
@@ -1118,7 +1145,7 @@ plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
 }
 
 calc_lm_stats <- function(
-                          df_lm, tract, g_type, avg_max, pair_anov, comp_list) {
+                          df_lm, tract, g_type, avg_max, tog_pair_mult, comp_list) {
 
   ### --- Notes:
   #
@@ -1143,7 +1170,7 @@ calc_lm_stats <- function(
     df_mem$mem_score <- df_lm[, ind_mem]
 
     # subset for pairwise comparison
-    if (pair_anov == "pair") {
+    if (tog_pair_mult == "pair") {
       df_mem <- df_mem[which(
         df_mem$group == comp_list[1] | df_mem$group == comp_list[2]
       ), ]
@@ -1157,15 +1184,15 @@ calc_lm_stats <- function(
         lm_stats_dir,
         "Stats_LM-", avg_max, "_",
         tract, "_G", g_type, "_",
-        mem, "_", pair_anov, ".txt"
+        mem, "_", tog_pair_mult, ".txt"
       )
     )
     etaSquared(fit.int)
 
     # make plots
-    if (pair_anov == "pair") {
+    if (tog_pair_mult == "pair") {
       plot_lm_pair(df_mem, avg_max, mem, comp_list[1], comp_list[2])
-    } else if (pair_anov == "anova") {
+    } else if (tog_pair_mult == "mult") {
       plot_lm_mult(df_mem, avg_max, mem, g_type)
     }
   }
@@ -1174,25 +1201,23 @@ calc_lm_stats <- function(
 
 
 # Work ------
-#
-# Two analyses (grouping types):
-#   1) Con vs Anx (removed)
-#   2) Con vs GAD vs SAD
-#   3) PARS Low vs Med vs High
 
-# group_type <- c(1, 2, 3)
+# group_type <- c(1:3)
 group_type <- 3
 tract_list <- c("UNC_L", "UNC_R", "FA")
 
-# for spline comparisons, linear models,
-#   determine whether to compare all (anova)
-#   or a pair. If pair, set factors as string.
-
-pair_anov <- "pair"
+# for spline comparisons, linear models, set toggle to
+#   determine whether to compare all ("mult")
+#   or a pair ("pair"). 
+#
+# If pair is set as toggle, determine groups to compare
+#   and set factors as string.
+tog_pair_mult <- "pair"
 # g2_pair_list <- c("0", "2")
 g3_pair_list <- c("0", "2")
 
 
+# Do work for each planned group_type
 for (g_type in group_type) {
 
   # make/get data, assign factor
@@ -1210,7 +1235,7 @@ for (g_type in group_type) {
   calc_memory_stats(df_afq, g_type)
 
   # get comp list
-  if (pair_anov == "pair") {
+  if (tog_pair_mult == "pair") {
     h_var <- paste0("g", g_type, "_pair_list")
     comp_list <- get(h_var)
   }
@@ -1222,23 +1247,23 @@ for (g_type in group_type) {
     df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
     # run gam, plot
-    gamFile <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
+    gam_file <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
 
-    if (!file.exists(gamFile)) {
+    if (!file.exists(gam_file)) {
       h_gam <- calc_gam_stats(tract, df_tract, g_type)
-      saveRDS(h_gam, file = gamFile)
+      saveRDS(h_gam, file = gam_file)
       rm(h_gam)
     }
 
-    gam_model <- readRDS(gamFile)
-    help_plot_gam(gam_model, tract, g_type, df_tract)
+    gam_model <- readRDS(gam_file)
+    plot_gam_splines(gam_model, tract, g_type, df_tract)
 
     # determine nodes of group differences
-    #   Use "anova" to compare bx >2 groups, and note
+    #   Use "mult" to compare bx >2 groups, and note
     #     that differences between splines will be for
     #     nodes which differed between ALL groups
     node_list <- calc_spline_diff(
-      gam_model, tract, g_type, pair_anov, comp_list
+      gam_model, tract, g_type, tog_pair_mult, comp_list
     )
 
     # deal w/no differences
@@ -1247,13 +1272,13 @@ for (g_type in group_type) {
     }
 
     # avg lm
-    avg_nList <- node_list[[1]]
-    df_avg <- make_diff_df(df_tract, avg_nList, g_type, "avg")
-    calc_lm_stats(df_avg, tract, g_type, "avg", pair_anov, comp_list)
+    avg_node_list <- node_list[[1]]
+    df_avg <- make_diff_df(df_tract, avg_node_list, g_type, "avg")
+    calc_lm_stats(df_avg, tract, g_type, "avg", tog_pair_mult, comp_list)
 
     # # max lm
-    # max_nList <- node_list[[2]]
-    # df_max <- make_diff_df(df_tract, max_nList, g_type, "max")
-    # calc_lm_stats(df_max, tract, g_type, "max", pair_anov, comp_list)
+    # max_node_list <- node_list[[2]]
+    # df_max <- make_diff_df(df_tract, max_node_list, g_type, "max")
+    # calc_lm_stats(df_max, tract, g_type, "max", tog_pair_mult, comp_list)
   }
 }
