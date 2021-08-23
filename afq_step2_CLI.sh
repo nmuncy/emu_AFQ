@@ -9,10 +9,17 @@
 #SBATCH --account iacc_madlab  # account
 #SBATCH --qos pq_madlab
 
+
+# Notes:
+#
+# This script runs pyAFQ via the reference file
+#   config.toml. Various files (templates, masks, etc.)
+#   are required in $HOME/AFQ_data.
+
 # make sure that AFQ_data exists in $HOME
 if [ ! -d ${HOME}/AFQ_data ]; then
     cp -r /home/data/madlab/atlases/AFQ_data $HOME
 fi
 
-# get my env, run job
+# Submit pyAFQ
 pyAFQ config.toml --notrack
