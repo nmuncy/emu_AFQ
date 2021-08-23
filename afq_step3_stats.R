@@ -437,7 +437,9 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
   ### --- Notes:
   #
   # Will plot smoothed splines produced by GAM
-  #   by creating a prediction dataframe.
+  #   by creating a prediction data frame.
+  #
+  # Only for 3 group factors (0, 1, 2).
 
   # plot
   df_pred <- predict.bam(
@@ -449,7 +451,7 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
   )
 
   df_pred <- data.frame(
-    group = df_tract$group,
+    Group = df_tract$group,
     sex = df_tract$sex,
     subjectID = df_tract$subjectID,
     pds = df_tract$pds,
@@ -475,14 +477,14 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
   )
 
   p <- ggplot(data = df_pred) +
-    geom_smooth(mapping = aes(x = nodeID, y = fit, color = group)) +
+    geom_smooth(mapping = aes(x = nodeID, y = fit, color = Group)) +
     ggtitle(h_title) +
     ylab("Fit FA") +
     xlab("Tract Node") +
     theme(text = element_text(
       family = "Times New Roman", face = "bold", size = 14
     ))
-
+  
   p + scale_color_manual(
     values = h_cols,
     breaks = h_breaks,
@@ -1021,6 +1023,7 @@ plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
     h_tract, "Spline Differences Predicting Memory Performance"
   )
   x_title <- ifelse(avg_max == "avg", "Mean FA", "Max FA")
+  y_title <- "Neg LGI"
 
   # set up, draw
   png(
@@ -1046,7 +1049,7 @@ plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
 
   plot(plot1.x, plot1.y,
     xlab = x_title,
-    ylab = mem,
+    ylab = y_title,
     ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)),
     main = h_labels[1]
   )
