@@ -878,18 +878,20 @@ calc_spline_diff <- function(model, tract, g_type, pair_anov, comp_list){
 
 
 # LM Functions ------
-func_mkdf_lm <- function(df_tract, node_list, g_type, avg_max){
+make_diff_df <- function(df_tract, node_list, g_type, avg_max){
   
   ### --- Notes:
   #
-  # Returns a dataframe for linear models
+  # Returns a data frame for linear models
   #   with either average FA or max FA 
   #   difference
   
   subj_list <- unique(df_tract$subjectID)
   df_out <- as.data.frame(matrix(NA, nrow=length(subj_list), ncol=8))
-  colnames(df_out) <- c("subj", "FAvalue", "pars6", "group", 
-                        "neu_lgi", "neu_ldi","neg_lgi", "neg_ldi")
+  colnames(df_out) <- c(
+    "subj", "fa_value", "pars6", "group", 
+    "neu_lgi", "neu_ldi","neg_lgi", "neg_ldi"
+  )
   df_out$subj <- subj_list
   
   for(subj in subj_list){
@@ -904,18 +906,21 @@ func_mkdf_lm <- function(df_tract, node_list, g_type, avg_max){
     df_out[ind_out,]$neg_lgi <- df_subj[1,]$neg_lgi
     df_out[ind_out,]$neg_ldi <- df_subj[1,]$neg_ldi
     
-    if(avg_max == "Avg"){
+    if(avg_max == "avg"){
+      
       df_node <- subset(df_subj, nodeID %in% node_list)
-      df_out[ind_out,]$FAvalue <- round(mean(df_node$dti_fa), 4)
-    }else if(avg_max == "Max"){
+      df_out[ind_out,]$fa_value <- round(mean(df_node$dti_fa), 4)
+      
+    }else if(avg_max == "max"){
+      
       ind_max <- which(df_subj$nodeID == node_list)
-      df_out[ind_out,]$FAvalue <- round(df_subj[ind_max,]$dti_fa, 4)
+      df_out[ind_out,]$fa_value <- round(df_subj[ind_max,]$dti_fa, 4)
     }
   }
   return(df_out)
 }
 
-func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
+plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
   
   ### --- Notes:
   #
@@ -929,16 +934,16 @@ func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
   h_tract <- switch_tract_name(tract)
   
   # set up for plot A
-  plot1.x <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$FAvalue
-  plot1.y <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$MemScore
+  plot1.x <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$fa_value
+  plot1.y <- df_plot[which(df_plot$group == as.numeric(factor_a)),]$mem_score
   
   # set up for plot B
-  plot2.x <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$FAvalue
-  plot2.y <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$MemScore
+  plot2.x <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$fa_value
+  plot2.y <- df_plot[which(df_plot$group == as.numeric(factor_b)),]$mem_score
   
   # omni title
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
-  x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
+  x_title <- ifelse(avg_max == "avg", "Mean FA", "Max FA")
   
   # set up, draw
   tiff(filename = paste0(
@@ -963,7 +968,7 @@ func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
   plot(plot1.x, plot1.y, 
        xlab = x_title, 
        ylab = mem, 
-       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)),
+       ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)),
        main = h_labels[1])
   abline(lm(plot1.y ~ plot1.x))
   
@@ -971,7 +976,7 @@ func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
        xlab = x_title, 
        ylab = "",
        main = h_labels[2], 
-       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+       ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)))
   abline(lm(plot2.y ~ plot2.x))
   
   mtext(h_title, outer = T, cex = 1.5)
@@ -979,7 +984,7 @@ func_plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b){
   par(mfrow=c(1,1))
 }
 
-func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
+plot_lm_mult <- function(df_plot, avg_max, mem, g_type){
   
   ### --- Notes:
   #
@@ -992,17 +997,17 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
   )
   h_tract <- switch_tract_name(tract)
   
-  plot1.x <- df_plot[which(df_plot$group == 0),]$FAvalue
-  plot1.y <- df_plot[which(df_plot$group == 0),]$MemScore
+  plot1.x <- df_plot[which(df_plot$group == 0),]$fa_value
+  plot1.y <- df_plot[which(df_plot$group == 0),]$mem_score
   
-  plot2.x <- df_plot[which(df_plot$group == 1),]$FAvalue
-  plot2.y <- df_plot[which(df_plot$group == 1),]$MemScore
+  plot2.x <- df_plot[which(df_plot$group == 1),]$fa_value
+  plot2.y <- df_plot[which(df_plot$group == 1),]$mem_score
   
-  plot3.x <- df_plot[which(df_plot$group == 2),]$FAvalue
-  plot3.y <- df_plot[which(df_plot$group == 2),]$MemScore
+  plot3.x <- df_plot[which(df_plot$group == 2),]$fa_value
+  plot3.y <- df_plot[which(df_plot$group == 2),]$mem_score
   
   h_title <- paste(h_tract, "Spline Differences Predicting Memory Performance")
-  x_title <- ifelse(avg_max == "Avg", "Mean FA", "Max FA")
+  x_title <- ifelse(avg_max == "avg", "Mean FA", "Max FA")
   
   tiff(filename = paste0(
       lm_plot_dir, "Plot_LM-", 
@@ -1026,7 +1031,7 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
        xlab = x_title, 
        cex.lab = 1.5,
        ylab = mem, 
-       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)),
+       ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)),
        main = h_labels[1])
   abline(lm(plot1.y ~ plot1.x))
   
@@ -1035,7 +1040,7 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
        cex.lab = 1.5,
        ylab = "",
        main = h_labels[2], 
-       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+       ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)))
   abline(lm(plot2.y ~ plot2.x))
   
   plot(plot3.x, plot3.y, 
@@ -1043,7 +1048,7 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
        cex.lab = 1.5,
        ylab = "",
        main = h_labels[3], 
-       ylim = c(min(df_plot$MemScore), max(df_plot$MemScore)))
+       ylim = c(min(df_plot$mem_score), max(df_plot$mem_score)))
   abline(lm(plot3.y ~ plot3.x))
   
   mtext(h_title, outer = T, cex = 1.5)
@@ -1051,29 +1056,29 @@ func_plot_lm_anova <- function(df_plot, avg_max, mem, g_type){
   par(mfrow=c(1,1))
 }
 
-func_stat_lm <- function(df_lm, tract, g_type, avg_max, pair_anov, comp_list){
+calc_lm_stats <- function(df_lm, tract, g_type, avg_max, pair_anov, comp_list){
   
   ### --- Notes:
   #
   # Conduct linear model for list of mem scores
   #   then make plots.
   
-  # memList <- c("neu_lgi", "neu_ldi","neg_lgi", "neg_ldi")
-  memList <- "neg_lgi"
+  # mem_list <- c("neu_lgi", "neu_ldi","neg_lgi", "neg_ldi")
+  mem_list <- "neg_lgi"
   
-  for(mem in memList){
+  for(mem in mem_list){
     
     # make dataframe for memory behavior
     df_mem <- as.data.frame(matrix(NA, nrow = dim(df_lm)[1], ncol=4))
-    colnames(df_mem) <- c("subj", "FAvalue", "group", "MemScore")
+    colnames(df_mem) <- c("subj", "fa_value", "group", "mem_score")
     
     df_mem$subj <- df_lm$subj
-    df_mem$FAvalue <- df_lm$FAvalue
+    df_mem$fa_value <- df_lm$fa_value
     df_mem$group <- df_lm$group
     
     # get/add appropriate behavior score
     ind_mem <- grep(mem, colnames(df_lm))
-    df_mem$MemScore <- df_lm[,ind_mem]
+    df_mem$mem_score <- df_lm[,ind_mem]
     
     # subset for pairwise comparison
     if(pair_anov == "pair"){
@@ -1083,7 +1088,7 @@ func_stat_lm <- function(df_lm, tract, g_type, avg_max, pair_anov, comp_list){
     }
     
     # linear regression
-    fit.int <- lm(MemScore ~ FAvalue*group, data = df_mem)
+    fit.int <- lm(mem_score ~ fa_value*group, data = df_mem)
     capture.output(
       summary(fit.int),
       file = paste0(lm_stats_dir,
@@ -1096,9 +1101,9 @@ func_stat_lm <- function(df_lm, tract, g_type, avg_max, pair_anov, comp_list){
     
     # make plots
     if(pair_anov == "pair"){
-      func_plot_lm_pair(df_mem, avg_max, mem, comp_list[1], comp_list[2])
+      plot_lm_pair(df_mem, avg_max, mem, comp_list[1], comp_list[2])
     }else if(pair_anov == "anova"){
-      func_plot_lm_anova(df_mem, avg_max, mem, g_type)
+      plot_lm_mult(df_mem, avg_max, mem, g_type)
     }
   }
 }
@@ -1175,12 +1180,12 @@ for(g_type in groupType){
     
     # avg lm
     avg_nList <- node_list[[1]]
-    df_avg <- func_mkdf_lm(df_tract, avg_nList, g_type, "Avg")
-    func_stat_lm(df_avg, tract, g_type, "Avg", pair_anov, comp_list)
+    df_avg <- make_diff_df(df_tract, avg_nList, g_type, "avg")
+    calc_lm_stats(df_avg, tract, g_type, "avg", pair_anov, comp_list)
     
     # # max lm
     # max_nList <- node_list[[2]]
-    # df_max <- func_mkdf_lm(df_tract, max_nList, g_type, "Max")
-    # func_stat_lm(df_max, tract, g_type, "Max", pair_anov, comp_list)
+    # df_max <- make_diff_df(df_tract, max_nList, g_type, "max")
+    # calc_lm_stats(df_max, tract, g_type, "max", pair_anov, comp_list)
   }
 }
