@@ -99,12 +99,12 @@ find_group_3 <- function(pars_score) {
   ### --- Notes: 
   #
   # Low (0): pars6 <= 3
-  # Med (1): 3 < pars6 < 13
+  # Med (1): 3 < pars6 <= 12
   # High (2): pars6 > 12
   
   if (pars_score <= 3) {
     return(0)
-  } else if (pars_score > 3 & pars_score < 13) {
+  } else if (pars_score > 3 & pars_score <= 12) {
     return(1)
   } else if (pars_score > 12) {
     return(2)
