@@ -13,7 +13,7 @@ library("lsr")
 
 # Notes:
 #
-# This script reads in pyAFQ data and conducts a series of 
+# This script reads in pyAFQ data and conducts a series of
 #   GAMs and pre-determined tracts.
 #
 # Group differences in spline fits are then investigated,
@@ -26,7 +26,7 @@ library("lsr")
 #   3) Low vs Med vs High Pars6 Score (currently used)
 #
 # For testing group spline differences, one pair can be
-#   tested with a single test ("pair"), or all pair 
+#   tested with a single test ("pair"), or all pair
 #   permutations can be compaired ("mult"). "Pair" is
 #   currently used.
 
@@ -45,11 +45,12 @@ lm_plot_dir <- paste0(data_dir, "plots_lm/")
 lm_stats_dir <- paste0(data_dir, "stats_lm/")
 table_dir <- paste0(data_dir, "tables/")
 memory_dir <- paste0(data_dir, "memory/")
+trad_dir <- paste0(data_dir, "traditional/")
 
 
 # General Functions ------
-find_group_1 <- function(search_str, df_adis, ind_adis){
-  
+find_group_1 <- function(search_str, df_adis, ind_adis) {
+
   ### --- Notes:
   #
   # Determine group for grouping type 1:
@@ -57,7 +58,7 @@ find_group_1 <- function(search_str, df_adis, ind_adis){
   #   0 = adis has "None"
   #
   # TODO could be update so 0 is catch all
-  
+
   if (
     sum(grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])) != 0
   ) {
@@ -68,21 +69,21 @@ find_group_1 <- function(search_str, df_adis, ind_adis){
 }
 
 find_group_2 <- function(search_str, df_adis, ind_adis) {
-  
+
   ### --- Notes:
   #
   # 1 = GAD is diagnosis 1, or GAD is diagnosed while SAD is not
   #   diagnosis 1.
   # 2 = SAD, contains search string
   # 0 = None
-  
+
   if (
     grepl("Gen", df_adis[ind_adis, ]$Diagnosis.1) == T |
-    (sum(grep("Gen", df_adis[ind_adis, ])) != 0 &
-     sum(
-       grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])
-     ) == 0
-    )
+      (sum(grep("Gen", df_adis[ind_adis, ])) != 0 &
+        sum(
+          grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])
+        ) == 0
+      )
   ) {
     return(1)
   } else if (
@@ -95,13 +96,13 @@ find_group_2 <- function(search_str, df_adis, ind_adis) {
 }
 
 find_group_3 <- function(pars_score) {
-  
-  ### --- Notes: 
+
+  ### --- Notes:
   #
   # Low (0): pars6 <= 3
   # Med (1): 3 < pars6 <= 12
   # High (2): pars6 > 12
-  
+
   if (pars_score <= 3) {
     return(0)
   } else if (pars_score > 3 & pars_score <= 12) {
@@ -170,11 +171,9 @@ make_master_df <- function(g_type) {
     if (g_type == 1) {
       search_str <- c("Anxiety", "Phobia")
       h_group <- find_group_1(search_str, df_adis, ind_adis)
-      
     } else if (g_type == 2) {
       search_str <- c("Separation", "Social")
       h_group <- find_group_2(search_str, df_adis, ind_adis)
-      
     } else if (g_type == 3) {
       h_group <- find_group_3(h_anx)
     }
@@ -371,7 +370,7 @@ calc_memory_stats <- function(df_afq, g_type) {
     file = paste0(memory_dir, "Stats_G", g_type, "_MANOVA.txt")
   )
 
-  # Stats 2: investigate mem x valence intx 
+  # Stats 2: investigate mem x valence intx
   #   detected in Stats 1 when group_type = 3
   h_man <- manova(
     cbind(neu_lgi, neg_lgi, neu_ldi, neg_ldi) ~ group,
@@ -381,13 +380,13 @@ calc_memory_stats <- function(df_afq, g_type) {
     summary.aov(h_man),
     file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval.txt")
   )
-  
-  # Stats 3: Tukey for g3 neg_lgi detected 
+
+  # Stats 3: Tukey for g3 neg_lgi detected
   #   in Stats 2 when group_type = 3
   group_fac <- as.numeric(df_mem$group)
-  
+
   group_value <- vector()
-  for(val in group_fac){
+  for (val in group_fac) {
     group_value <- c(group_value, switch_plot_values(val, g_type)[[2]])
   }
   df_mem$group <- group_value
@@ -400,15 +399,16 @@ calc_memory_stats <- function(df_afq, g_type) {
   )
 
   # make a plot
-  h_colors <- c(switch_plot_values("2", g_type)[[1]],
+  h_colors <- c(
+    switch_plot_values("2", g_type)[[1]],
     switch_plot_values("0", g_type)[[1]],
     switch_plot_values("1", g_type)[[1]]
   )
   post_comp <- list(c("High", "Low"))
   ggboxplot(df_mem,
-    y="neg_lgi",
-    x="group",
-    color="group",
+    y = "neg_lgi",
+    x = "group",
+    color = "group",
     palette = h_colors,
     add = "jitter",
     title = "top"
@@ -418,7 +418,7 @@ calc_memory_stats <- function(df_afq, g_type) {
     stat_compare_means(comparisons = post_comp) +
     ggtitle("eMST Group Memory Performance") +
     rremove("legend") +
-    theme(text=element_text(family="Times New Roman", face="bold", size=16))
+    theme(text = element_text(family = "Times New Roman", face = "bold", size = 16))
 
   ggsave(
     paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.png"),
@@ -427,7 +427,6 @@ calc_memory_stats <- function(df_afq, g_type) {
     height = 6,
     device = "png"
   )
-  
 }
 
 
@@ -484,7 +483,7 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
     theme(text = element_text(
       family = "Times New Roman", face = "bold", size = 14
     ))
-  
+
   p + scale_color_manual(
     values = h_cols,
     breaks = h_breaks,
@@ -547,9 +546,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     sex +
     s(nodeID, by = group, k = 40) +
     s(subjectID, bs = "re"),
-    data = df_tract,
-    family = Gamma(link = "logit"),
-    method = "REML"
+  data = df_tract,
+  family = Gamma(link = "logit"),
+  method = "REML"
   )
 
   # gam.check(fit_gamma, rep = 500)
@@ -564,9 +563,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     sex +
     s(nodeID, by = group, k = 40) +
     s(subjectID, bs = "re"),
-    data = df_tract,
-    family = betar(link = "logit"),
-    method = "REML"
+  data = df_tract,
+  family = betar(link = "logit"),
+  method = "REML"
   )
 
   # gam.check(fit_beta, rep = 500)
@@ -582,9 +581,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       sex +
       s(nodeID, by = group, k = 40) +
       s(subjectID, bs = "re"),
-      data = df_tract,
-      family = gaussian(link = "logit"),
-      method = "REML"
+    data = df_tract,
+    family = gaussian(link = "logit"),
+    method = "REML"
     )
 
     # gam.check(fit_beta, rep = 500)
@@ -629,9 +628,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       s(nodeID, by = group, k = 40) +
       s(pds, by = sex) +
       s(subjectID, bs = "re"),
-      data = df_tract,
-      family = gaussian(link = "logit"),
-      method = "REML"
+    data = df_tract,
+    family = gaussian(link = "logit"),
+    method = "REML"
     )
   } else {
     fit_cov_pds <- bam(dti_fa ~ group +
@@ -639,9 +638,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
       s(nodeID, by = group, k = 40) +
       s(pds, by = sex) +
       s(subjectID, bs = "re"),
-      data = df_tract,
-      family = Gamma(link = "logit"),
-      method = "REML"
+    data = df_tract,
+    family = Gamma(link = "logit"),
+    method = "REML"
     )
   }
 
@@ -679,7 +678,11 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   return(fit_cov_pds)
 }
 
-plot_spline_diff_pair <- function(gam_model, tract, g_type, factor_a, factor_b) {
+plot_spline_diff_pair <- function(gam_model, 
+                                  tract, 
+                                  g_type, 
+                                  factor_a, 
+                                  factor_b) {
 
   ### --- Notes:
   #
@@ -698,27 +701,27 @@ plot_spline_diff_pair <- function(gam_model, tract, g_type, factor_a, factor_b) 
 
   par(mar = c(5, 5, 4, 2), family = "Times New Roman")
   capture.output(plot_diff(gam_model,
-      view = "nodeID",
-      comp = list(group = c(factor_a, factor_b)),
-      rm.ranef = T,
-      main = paste0(
-        "Difference Scores, ", group_a, "-", group_b
-      ),
-      ylab = "Est. FA difference",
-      xlab = "Tract Node",
-      cex.lab = 2,
-      cex.axis = 2,
-      cex.main = 2,
-      cex.sub = 1.5
+    view = "nodeID",
+    comp = list(group = c(factor_a, factor_b)),
+    rm.ranef = T,
+    main = paste0(
+      "Difference Scores, ", group_a, "-", group_b
     ),
-    file = paste0(
-      table_dir,
-      "Table_Diff_",
-      tract, "_", "G",
-      g_type, "_",
-      factor_a, factor_b,
-      ".txt"
-    )
+    ylab = "Est. FA difference",
+    xlab = "Tract Node",
+    cex.lab = 2,
+    cex.axis = 2,
+    cex.main = 2,
+    cex.sub = 1.5
+  ),
+  file = paste0(
+    table_dir,
+    "Table_Diff_",
+    tract, "_", "G",
+    g_type, "_",
+    factor_a, factor_b,
+    ".txt"
+  )
   )
   par(mar = c(5, 4, 4, 2))
   dev.off()
@@ -876,7 +879,11 @@ make_spline_diff_mult_df <- function(gam_model) {
   return(df_out)
 }
 
-calc_spline_diff <- function(gam_model, tract, g_type, tog_pair_mult, comp_list) {
+calc_spline_diff <- function(gam_model, 
+                             tract, 
+                             g_type, 
+                             tog_pair_mult, 
+                             comp_list) {
 
   ### --- Notes:
   #
@@ -1148,7 +1155,12 @@ plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
 }
 
 calc_lm_stats <- function(
-                          df_lm, tract, g_type, avg_max, tog_pair_mult, comp_list) {
+                          df_lm, 
+                          tract, 
+                          g_type, 
+                          avg_max, 
+                          tog_pair_mult, 
+                          comp_list) {
 
   ### --- Notes:
   #
@@ -1202,6 +1214,173 @@ calc_lm_stats <- function(
 }
 
 
+# Traditional Approach -----
+
+plot_trad_lm <- function(fac_str, tract, df_trad, out_str) {
+
+  # make plot
+  h_tract <- switch_tract_name(tract)
+  ggplot(df_trad, aes(x = get(fac_str), y = avg_fa)) +
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") +
+    ggtitle(h_tract) +
+    ylab("Avg FA") +
+    xlab(fac_str) +
+    theme(text = element_text(
+      family = "Times New Roman", face = "bold", size = 14
+    ))
+
+  ggsave(
+    paste0(trad_dir, "Plot_lm_", tract, "_", fac_str, "_", out_str, ".png"),
+    units = "in",
+    width = 6,
+    height = 6,
+    device = "png"
+  )
+}
+
+calc_trad_lm <- function(df_trad, tract) {
+
+  # start fdr table
+  fdr_table <- as.data.frame(matrix(NA, nrow = 1, ncol = 2))
+  colnames(fdr_table) <- c("test", "p_orig")
+
+  # LMs, plots
+  for (fac_str in c("pds", "pars6")) {
+
+    # Conduct LM, write out
+    fit_lm <- lm(avg_fa ~ get(fac_str), data = df_trad)
+    capture.output(
+      summary(fit_lm),
+      file = paste0(trad_dir, "lm_", tract, "_", fac_str, ".txt")
+    )
+
+    # Capture P for FDR, plotting
+    fit_p <- round(summary(fit_lm)$coefficients[2, 4], 6)
+    if (fit_p < 0.05) {
+      fdr_table <- rbind(fdr_table, c(fac_str, fit_p))
+      plot_trad_lm(fac_str, tract, df_trad, "all")
+    }
+  }
+
+  # test for diff bx sex
+  ind_female <- which(df_trad$sex == 0)
+  ind_male <- which(df_trad$sex == 1)
+
+  t_sex <- t.test(
+    df_trad[ind_male, ]$avg_fa,
+    df_trad[ind_female, ]$avg_fa
+  )
+  capture.output(
+    t_sex,
+    file = paste0(trad_dir, "tt_", tract, "_sex.txt")
+  )
+
+  t_pvalue <- round(t_sex$p.value, 6)
+  if (t_pvalue < 0.05) {
+    fdr_table <- rbind(fdr_table, c("t_sex", t_pvalue))
+  }
+
+  # # Boxplot by group and sex
+  # h_tract = switch_tract_name(tract)
+  # h_title = paste(h_tract, "FA by Sex and PARS6 Group")
+  # fac_a = switch_plot_values("0", g_type)[[2]]
+  # fac_b = switch_plot_values("1", g_type)[[2]]
+  # fac_c = switch_plot_values("2", g_type)[[2]]
+  #
+  # p <- ggplot(df_trad, aes(x=group, y=avg_fa, fill=sex)) +
+  #   geom_boxplot() +
+  #   ggtitle(h_title) +
+  #   ylab("Avg FA") +
+  #   xlab("Group") +
+  #   theme(text = element_text(
+  #     family = "Times New Roman", face = "bold", size = 14
+  #   ))
+  # p + scale_x_discrete(labels=c("0" = fac_a, "1" = fac_b, "2" = fac_c)) +
+  #   scale_fill_discrete(name = "Sex", labels = c("Female", "Male"))
+
+  # repeat LMs for each sex
+  for (h_sex in c("female", "male")) {
+    ind_sex <- get(paste0("ind_", h_sex))
+
+    for (fac_str in c("pds", "pars6")) {
+
+      # Conduct LM, write out
+      fit_lm <- lm(avg_fa ~ get(fac_str), data = df_trad[ind_sex, ])
+      capture.output(
+        summary(fit_lm),
+        file = paste0(
+          trad_dir, "lm_", tract, "_", fac_str, "_", h_sex, ".txt"
+        )
+      )
+
+      # Capture P for FDR, plotting
+      fit_p <- round(summary(fit_lm)$coefficients[2, 4], 6)
+      if (fit_p < 0.05) {
+        fdr_table <- rbind(
+          fdr_table,
+          c(paste(fac_str, h_sex, sep = "-"), fit_p)
+        )
+        plot_trad_lm(fac_str, tract, df_trad[ind_sex, ], h_sex)
+      }
+    }
+  }
+
+  # do FDR correction
+  if (dim(fdr_table)[1] > 1) {
+    fdr_table <- fdr_table[-1, ]
+    fdr_table$p_corr <- p.adjust(
+      fdr_table$p_orig,
+      method = "fdr",
+      n = dim(fdr_table)[1]
+    )
+
+    write.table(
+      fdr_table,
+      file = paste0(trad_dir, "fdr_", tract, ".txt"),
+      quote = F,
+      row.names = F,
+      sep = "\t"
+    )
+  }
+}
+
+make_trad_df <- function(df_tract, tract, g_type) {
+
+  # get subjects
+  subj_list <- unique(df_tract$subjectID)
+
+  # start new (long) df, fill with subjects
+  df_trad <- as.data.frame(matrix(NA, nrow = length(subj_list), ncol = 6))
+  colnames(df_trad) <- c("subj", "group", "pds", "pars6", "sex", "avg_fa")
+  df_trad$subj <- subj_list
+
+  for (subj in subj_list) {
+
+    # find indices
+    ind_out <- which(df_trad$subj == subj)
+    ind_subj <- which(df_tract$subjectID == subj)
+
+    # get covariates, factors
+    df_trad[ind_out, ]$group <-
+      as.numeric(as.character(df_tract[ind_subj[1], ]$group))
+    df_trad[ind_out, ]$pds <- df_tract[ind_subj[1], ]$pds
+    df_trad[ind_out, ]$pars6 <- df_tract[ind_subj[1], ]$pars6
+    df_trad[ind_out, ]$sex <-
+      as.numeric(as.character(df_tract[ind_subj[1], ]$sex))
+
+    # determine avg fa of tract
+    df_trad[ind_out, ]$avg_fa <- mean(df_tract[ind_subj, ]$dti_fa)
+  }
+
+  # ensure factors
+  df_trad$group <- as.factor(df_trad$group)
+  df_trad$sex <- as.factor(df_trad$sex)
+
+  # initiate stats, plots
+  calc_trad_lm(df_trad, tract)
+}
+
 
 # Work ------
 
@@ -1211,7 +1390,7 @@ tract_list <- c("UNC_L", "UNC_R", "FA")
 
 # for spline comparisons, linear models, set toggle to
 #   determine whether to compare all ("mult")
-#   or a pair ("pair"). 
+#   or a pair ("pair").
 #
 # If pair is set as toggle, determine groups to compare
 #   and set factors as string.
@@ -1248,6 +1427,9 @@ for (g_type in group_type) {
     # subset df_afq for tract
     df_tract <- df_afq[which(df_afq$tractID == tract), ]
     df_tract$dti_fa <- round(df_tract$dti_fa, 3)
+
+    # do traditional method
+    make_trad_df(df_tract, tract, g_type)
 
     # run gam, plot
     gam_file <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
