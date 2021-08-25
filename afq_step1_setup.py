@@ -36,14 +36,14 @@ def main():
     # edit config.toml
     toml_file = os.path.join(code_dir, "config.toml")
 
-    conf_dict = {
-        "files": {"dmriprep_folder": deriv_dir},
-        "BIDS": {"bids_path": bids_dir},
-        "TRACTOGRAPHY": {"directions": "prob"},
-    }
+    toml_dict = toml.load(toml_file)
+    toml_dict["TRACTOGRAPHY"]["directions"] = "prob"
+    toml_dict["BIDS"]["bids_path"] = bids_dir
+    toml_dict["files"]["dmriprep_folder"] = deriv_dir
 
-    with open(toml_file, "w") as tf:
-        toml.dump(conf_dict, tf)
+    tf = open(toml_file, "w")
+    toml.dump(toml_dict, tf)
+    tf.close()
 
 
 if __name__ == "__main__":
