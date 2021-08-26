@@ -383,50 +383,53 @@ calc_memory_stats <- function(df_afq, g_type) {
 
   # Stats 3: Tukey for g3 neg_lgi detected
   #   in Stats 2 when group_type = 3
-  group_fac <- as.numeric(df_mem$group)
-
-  group_value <- vector()
-  for (val in group_fac) {
-    group_value <- c(group_value, switch_plot_values(val, g_type)[[2]])
+  if (g_type == 3){
+    
+    group_fac <- as.numeric(df_mem$group)
+    
+    group_value <- vector()
+    for (val in group_fac) {
+      group_value <- c(group_value, switch_plot_values(val, g_type)[[2]])
+    }
+    df_mem$group <- group_value
+    
+    h_lm <- lm(neg_lgi ~ group, data = df_mem)
+    h_av <- aov(h_lm)
+    capture.output(
+      TukeyHSD(h_av),
+      file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
+    )
+    
+    # make a plot
+    h_colors <- c(
+      switch_plot_values("2", g_type)[[1]],
+      switch_plot_values("0", g_type)[[1]],
+      switch_plot_values("1", g_type)[[1]]
+    )
+    post_comp <- list(c("High", "Low"))
+    ggboxplot(df_mem,
+              y = "neg_lgi",
+              x = "group",
+              color = "group",
+              palette = h_colors,
+              add = "jitter",
+              title = "top"
+    ) +
+      xlab("PARS6 Group") +
+      ylab("Neg LGI") +
+      stat_compare_means(comparisons = post_comp) +
+      ggtitle("eMST Group Memory Performance") +
+      rremove("legend") +
+      theme(text = element_text(family = "Times New Roman", face = "bold", size = 16))
+    
+    ggsave(
+      paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.png"),
+      units = "in",
+      width = 6,
+      height = 6,
+      device = "png"
+    )
   }
-  df_mem$group <- group_value
-
-  h_lm <- lm(neg_lgi ~ group, data = df_mem)
-  h_av <- aov(h_lm)
-  capture.output(
-    TukeyHSD(h_av),
-    file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
-  )
-
-  # make a plot
-  h_colors <- c(
-    switch_plot_values("2", g_type)[[1]],
-    switch_plot_values("0", g_type)[[1]],
-    switch_plot_values("1", g_type)[[1]]
-  )
-  post_comp <- list(c("High", "Low"))
-  ggboxplot(df_mem,
-    y = "neg_lgi",
-    x = "group",
-    color = "group",
-    palette = h_colors,
-    add = "jitter",
-    title = "top"
-  ) +
-    xlab("PARS6 Group") +
-    ylab("Neg LGI") +
-    stat_compare_means(comparisons = post_comp) +
-    ggtitle("eMST Group Memory Performance") +
-    rremove("legend") +
-    theme(text = element_text(family = "Times New Roman", face = "bold", size = 16))
-
-  ggsave(
-    paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.png"),
-    units = "in",
-    width = 6,
-    height = 6,
-    device = "png"
-  )
 }
 
 
