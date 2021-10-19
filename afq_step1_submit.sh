@@ -6,12 +6,12 @@ function Usage {
     Copy data to a working directory, wrap afq_step1_setup.py.
 
     This script will copy data from a BIDS-structured project
-    directory to a BIDS-structured working/processing directory. 
+    directory to a BIDS-structured working/processing directory.
     This is because we store our project data in one location
-    (/home/data/madlab/...) but process our data and manage 
+    (/home/data/madlab/...) but process our data and manage
     intermediates in another (/scratch/madlab/...).
 
-    Pre-processed dwi data will be copied from 
+    Pre-processed dwi data will be copied from
         <data_dir>/derivatives/<deriv_dir> to
         <proc_dir>/derivatives/<deriv_dir>.
 
@@ -35,7 +35,8 @@ function Usage {
     Required Arguments:
 
         -c </path/to/code_dir> = location of afq_step1_setup.py
-        -d </path/to/data_dir> = location of BIDS-structured stored project 
+            Note: for wrapping python, have config.toml in the code_dir
+        -d </path/to/data_dir> = location of BIDS-structured stored project
             data
         -p </path/to/proc_dir> = location to where data will be copied,
             and processed. Will be created if it does not exist
@@ -64,7 +65,7 @@ unset code_dir data_dir proc_dir sess run diff_dir
 
 while getopts ":c:d:p:s:r:x:j:h" OPT
     do
-    case $OPT in 
+    case $OPT in
         c) code_dir=${OPTARG}
             ;;
         d) data_dir=${OPTARG}
@@ -121,7 +122,7 @@ if [ ! -d $data_dir ]; then
     exit 1
 fi
 
-if [ ! -d $diff_dir ]; then
+if [ ! -d ${data_dir}/derivatives/$diff_dir ]; then
     echo -e "\n \t ERROR: $diff_dir not found or is not a directory." >&2
     Usage
     exit 1
@@ -134,7 +135,8 @@ if [ ! -f $json_file ]; then
 fi
 
 cat << EOF
-Checks passed, starting work.
+
+    Success! Checks passed, starting work with the following variables:
 
     code_dir=$code_dir
     data_dir=$data_dir
@@ -143,27 +145,30 @@ Checks passed, starting work.
     run=$run
     diff_dir=$diff_dir
     json_file=$json_file
+
 EOF
 
 
 # Get oriented
 deriv_dir=${data_dir}/derivatives/$diff_dir
 dset_dir=${data_dir}/dset
-work_dir=${proc_dir}/derivatives/dwi_preproc
+work_dir=${proc_dir}/derivatives/$diff_dir
 
 # Get json
 mkdir -p $work_dir
 cp $json_file $proc_dir
 
 # Copy, BIDs format pre-processed dwi data
-cd $deriv_dir
-for subj in sub-*; do
+unset subj_list
+subj_list=(`ls $deriv_dir | grep "sub-*"`)
+for subj in ${subj_list[@]}; do
 
     source_dir=${deriv_dir}/${subj}/${sess}/dwi
     out_dir=${work_dir}/${subj}/${sess}/dwi
 
-    if [ ! -f ${out_dir}/${subj}_${sess}_dwi.nii.gz ]; then
+    if [ ! -d $out_dir ] || [ ! -f ${out_dir}/${subj}_${sess}_dwi.nii.gz ]; then
 
+        echo -e "\t Copying data for $subj ..."
         mkdir -p $out_dir
 
         cp ${dset_dir}/${subj}/${sess}/dwi/${subj}_${sess}_${run}_dwi.bval \
@@ -172,13 +177,15 @@ for subj in sub-*; do
             ${out_dir}/${subj}_${sess}_dwi.bvec
         cp ${source_dir}/${subj}_${sess}_${run}_desc-eddyCorrected_dwi.nii.gz \
             ${out_dir}/${subj}_${sess}_dwi.nii.gz
+
     fi
 done
 
 # submit python
+echo -e "\n \t Starting python script ..."
 python ${code_dir}/afq_step1_setup.py \
     -c ${code_dir}/config.toml \
     -b $proc_dir \
     -d $work_dir \
-    -j ${proc_dir}/dataset_description.json
+    -j ${proc_dir}/dataset_description.json \
     -p $diff_dir

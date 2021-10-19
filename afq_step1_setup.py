@@ -16,7 +16,11 @@ from argparse import ArgumentParser
 def get_args():
     parser = ArgumentParser("Receive bash args from afq_step1_submit.sh wrapper")
     parser.add_argument(
-        "-c", "--config-file", help="/path/to/afq/config.toml", type=str, required=True,
+        "-c",
+        "--config-file",
+        help="/path/to/afq/config.toml",
+        type=str,
+        required=True,
     )
     parser.add_argument(
         "-b",
@@ -49,13 +53,13 @@ def get_args():
     return parser
 
 
-def write_jsons(json_file, dset_json, deriv_json, dwi_str):
+def write_jsons(json_file, deriv_json, dwi_str):
     """Update and write a number of json files.
 
     Three dataset_description.json files will be written/updated: the
-    input json_file, a copy of json_file written to dset_json, and
-    another copy written to deriv_json. These json files will have the
-    "PipelineDescription" field updated/appended for AFQ needs.
+    input json_file, a copy of json_file written to deriv_json. These
+    json files will have the "PipelineDescription" field updated/appended
+    for AFQ needs.
 
     Parameters
     ----------
@@ -69,16 +73,12 @@ def write_jsons(json_file, dset_json, deriv_json, dwi_str):
         will be created/overwritten with json_file values
     dwi_str : str
         String to append as PipelineDescription Name for dwi data
-     """
+    """
     with open(json_file) as jf:
         json_content = json.load(jf)
 
     json_content.update({"PipelineDescription": {"Name": "General"}})
     with open(json_file, "w") as jf:
-        json.dump(json_content, jf)
-
-    json_content.update({"PipelineDescription": {"Name": "dcm2niix"}})
-    with open(dset_json, "w") as jf:
         json.dump(json_content, jf)
 
     json_content.update({"PipelineDescription": {"Name": f"{dwi_str}"}})
@@ -99,9 +99,8 @@ def main():
     dwi_str = args.preproc_dwi
 
     # append and make dataset_description.json files
-    dset_json = os.path.join(bids_dir, "dset", "dataset_description.json")
     deriv_json = os.path.join(deriv_dir, "dataset_description.json")
-    write_jsons(json_file, dset_json, deriv_json, dwi_str)
+    write_jsons(json_file, deriv_json, dwi_str)
 
     # edit config.toml with desired fields
     toml_dict = toml.load(toml_file)
