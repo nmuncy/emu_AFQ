@@ -11,7 +11,7 @@ library("ggpubr")
 library("lsr")
 
 
-# Notes:
+# Notes ----
 #
 # This script reads in pyAFQ data and conducts a series of
 #   GAMs and pre-determined tracts.
@@ -27,14 +27,14 @@ library("lsr")
 #
 # For testing group spline differences, one pair can be
 #   tested with a single test ("pair"), or all pair
-#   permutations can be compaired ("mult"). "Pair" is
+#   permutations can be compared ("mult"). "Pair" is
 #   currently used.
 
 
 # Set Up ------
 #
-# Various input, output paths/directories.
-#   Final forward-slash included for simplified pasting.
+# Various input, output paths/directories. Final forward-slash included for 
+# simplified pasting.
 
 data_dir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 private_dir <- "/Users/nmuncy/Projects/emu_data/emu_private/"
@@ -50,15 +50,20 @@ trad_dir <- paste0(data_dir, "traditional/")
 
 # General Functions ------
 find_group_1 <- function(search_str, df_adis, ind_adis) {
-
-  ### --- Notes:
+  # Determine group for g_type=1
   #
-  # Determine group for grouping type 1:
+  # Arguments:
+  #   search_str = string to find in df_adis[ind_adis,]
+  #   df_adis = emuR01_adis.csv, contais ADIS dxs
+  #   ind_adis = index of subject in df_adis
+  #
+  # Returns:
   #   1 = adis has "Anxiety" or "Phobia"
   #   0 = adis has "None"
   #
-  # TODO could be update so 0 is catch all
-
+  # TODO:
+  #   Could be update so 0 is catch all
+  
   if (
     sum(grep(paste(search_str, collapse = "|"), df_adis[ind_adis, ])) != 0
   ) {
@@ -69,14 +74,18 @@ find_group_1 <- function(search_str, df_adis, ind_adis) {
 }
 
 find_group_2 <- function(search_str, df_adis, ind_adis) {
-
-  ### --- Notes:
+  # Determine group for g_type=2
   #
-  # 1 = GAD is diagnosis 1, or GAD is diagnosed while SAD is not
-  #   diagnosis 1.
-  # 2 = SAD, contains search string
-  # 0 = None
-
+  # Arguments:
+  #   search_str = string to find in df_adis[ind_adis,]
+  #   df_adis = emuR01_adis.csv, contais ADIS dxs
+  #   ind_adis = index of subject in df_adis
+  #
+  # Returns: 
+  #   1 = GAD is dx 1, or dx GAD but SAD is not dx 1
+  #   2 = SAD, contains search string
+  #   0 = No dx
+  
   if (
     grepl("Gen", df_adis[ind_adis, ]$Diagnosis.1) == T |
       (sum(grep("Gen", df_adis[ind_adis, ])) != 0 &
@@ -96,13 +105,16 @@ find_group_2 <- function(search_str, df_adis, ind_adis) {
 }
 
 find_group_3 <- function(pars_score) {
-
-  ### --- Notes:
+  # Determine group for g_type=3
   #
-  # Low (0): pars6 <= 3
-  # Med (1): 3 < pars6 <= 12
-  # High (2): pars6 > 12
-
+  # Arguments:
+  #   pars_score = subject's PARS6 score
+  #
+  # Returns:
+  #   0 = Low, pars6 <= 3
+  #   1 = Med, 3 < pars6 <= 12
+  #   2 = High, pars6 > 12
+  
   if (pars_score <= 3) {
     return(0)
   } else if (pars_score > 3 & pars_score <= 12) {
@@ -113,14 +125,26 @@ find_group_3 <- function(pars_score) {
 }
 
 make_master_df <- function(g_type) {
-
-  ### --- Notes:
+  # Make dataframe of AFQ, demographic, memory data
   #
   # This function will make a master dataframe that
   # contains node FA values, group membership, sex, pds
-  # and memory measures (LG/DI)
+  # and memory measures (LG/DI) to be used in subsequent
+  # analyses. Group membership will vary by g_type.
   #
-  # Writes data_dir/Master_dataframe.csv
+  # Arguments:
+  #   g_type = method for determining groups (1-3)
+  #
+  # Writes:
+  #   data_dir/Master_dataframe_G<g_type>.csv
+  # 
+  # Notes:
+  #   1) References private_dir, a local dir that contains
+  #     various csv files pulled from EMU SharePoint.
+  # 
+  # TODO: 
+  #   Make more efficient? Currently loops through e/subject
+  #   to build master df row-by-row.
 
   # Get data
   df_afq <- read.delim(
@@ -276,10 +300,20 @@ make_master_df <- function(g_type) {
 }
 
 switch_plot_values <- function(value, g_type) {
-
-  ### --- Notes:
-  #
   # Switch for determining group, coloring
+  #
+  # Used for keeping colors, labels consistent
+  # across plots, g_types.
+  #
+  # Arguments:
+  #   value = group factor (0-2)
+  #   g_type = grouping type (1-3)
+  #
+  # Returns:
+  #   named list of lists - [[1]] = color, [[2]] = group
+  #
+  # Notes:
+  #   Does not currently support g_type=1
 
   x_col <- switch(
     value,
@@ -307,11 +341,13 @@ switch_plot_values <- function(value, g_type) {
 }
 
 switch_tract_name <- function(tract) {
-
-  ### --- Notes:
+  # Switch for decoding AFQ tract names
   #
-  # Switch for determining name
-  #   of tracts
+  # Arguments:
+  #   tract = AFQ tract string
+  #
+  # Returns:
+  #   reformatted tract name
 
   x_tract <- switch(
     tract,
@@ -323,11 +359,21 @@ switch_tract_name <- function(tract) {
 }
 
 calc_memory_stats <- function(df_afq, g_type) {
-
-  ### --- Notes:
+  # Conduct statistical tests on memory metrics
   #
-  # This function will conduct a MANOVA
-  #   and post-hoc on memory measures.
+  # This function will conduct a MANOVA and post-hocs on memory measures. 
+  # Plots g_type=3 NegLGI.
+  #
+  # Arguments:
+  #   df_afq = master dataframe made by make_master_df
+  #   g_type = grouping type (1-3)
+  #
+  # Writes:
+  #   memory_dir/Stats_*.txt, memory_dir/Plot_*.png
+  #
+  # TODO: 
+  #   Only pass df containing one measure per subject rather than
+  #   entire df_afq.
 
   # subset df for ease of use
   ind_mem <- which(df_afq$tractID == tract_list[1] & df_afq$nodeID == 0)
@@ -400,7 +446,7 @@ calc_memory_stats <- function(df_afq, g_type) {
       file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
     )
     
-    # make a plot
+    # make a plot, draw high-low stat
     h_colors <- c(
       switch_plot_values("2", g_type)[[1]],
       switch_plot_values("0", g_type)[[1]],
@@ -435,15 +481,24 @@ calc_memory_stats <- function(df_afq, g_type) {
 
 # GAM Functions ------
 plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
-
-  ### --- Notes:
+  # Plot splines for a GAM
   #
   # Will plot smoothed splines produced by GAM
   #   by creating a prediction data frame.
   #
-  # Only for 3 group factors (0, 1, 2).
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
+  #   df_tract = dataframe of AFQ nodes for certain tract
+  #
+  # Writes:
+  #   gam_plot_dir/Plot_GAM_*.png
+  #
+  # Notes:
+  #   Only for 3 group factors (0, 1, 2), i.e. g_type=1 not supported.
 
-  # plot
+  # generate predictions
   df_pred <- predict.bam(
     gam_model,
     exclude_terms = c("pds", "sex", "subjectID"),
@@ -452,6 +507,7 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
     type = "response"
   )
 
+  # convert predictions to dataframe
   df_pred <- data.frame(
     Group = df_tract$group,
     sex = df_tract$sex,
@@ -462,6 +518,7 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
     se.fit = df_pred$se.fit
   )
 
+  # set up for plot
   h_tract <- switch_tract_name(tract)
   h_title <- paste0("GAM Fit of ", h_tract, " FA Values")
 
@@ -478,6 +535,7 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
     switch_plot_values("2", g_type)[[2]][1]
   )
 
+  # draw plot
   p <- ggplot(data = df_pred) +
     geom_smooth(mapping = aes(x = nodeID, y = fit, color = Group)) +
     ggtitle(h_title) +
@@ -504,47 +562,52 @@ plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
 
 calc_gam_stats <- function(tract, df_tract, g_type) {
 
-  ### --- Notes:
+  # Calculate GAM for tract node FA values
   #
-  # This function has 2 main steps
+  # This function has a series of steps:
+  #   1) Use distribution to determine GAM family
+  #       Gamma, beta, and Gaussian are used for the tracts
+  #   2) Build the GAM, test if basis function is appropriate
+  #       It was determined that k=40 worked for each tract
+  #   3) Compare different GAMs to find best fit
+  #   4) Add covariates, repeat 2-3
   #
-  # 1) Determine best GAM family.
-  #   This is based off the distribution of the
-  #   data. It was determined that a gamma
-  #   fit better than beta for all tracts.
-  #   It was also determined that k=40 worked
-  #   for all tracts.
+  # Arguments:
+  #   tract = AFQ tract name
+  #   df_tract = dataframe of node FAs for single tract
+  #   g_type = grouping type (1-3)
   #
-  # 2) Model with covariates, compare models.
-  #   All tracts had better model fit when pds
-  #   was added. The covariate model is then
-  #   plotted.
+  # Writes:
+  #   gam_stats_dir/Stats_GAM-*.txt
   #
-  # Note: this work can only be a function since
-  #   it happened that all tracts had the same
-  #   distribution, family, K, and best model.
+  # Returns:
+  #   preferred GAM object (fit_cov_pds) for each tract   
+  #
+  # Notes: 
+  #   1) Given that k=40 was appropriate for each tract, and the covariate
+  #   model better fit the non-covariate model, only gam_cov_pds is
+  #   plotted for each tract. This also allowed for looping.
 
-  ### Model tract, no covariates
-  # # plot mean data
-  # ggplot(data = df_tract) +
-  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=group))
-  #
-  # ggplot(data = df_tract) +
-  #   geom_point(mapping = aes(x=nodeID, y=dti_fa, color=group),size=0.3) +
-  #   geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=group))
+  # plot mean data
+  ggplot(data = df_tract) +
+    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=group))
 
-  # # determine distribution
-  # descdist(df_tract$dti_fa, discrete=F) # Could be beta or gamma
-  #
+  ggplot(data = df_tract) +
+    geom_point(mapping = aes(x=nodeID, y=dti_fa, color=group),size=0.3) +
+    geom_smooth(mapping = aes(x=nodeID, y=dti_fa, color=group))
+
+  # determine distribution
+  descdist(df_tract$dti_fa, discrete=F)
+
   # fit.beta <- fitdist(df_tract$dti_fa, "beta")
   # plot(fit.beta)
   # fit.beta$aic
-  #
+  # 
   # fit.gamma <- fitdist(df_tract$dti_fa, "gamma")
   # plot(fit.gamma)
   # fit.gamma$aic
 
-  #  determine k, compare families
+  #  write gam with gamma family
   fit_gamma <- bam(dti_fa ~ group +
     sex +
     s(nodeID, by = group, k = 40) +
@@ -554,7 +617,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   method = "REML"
   )
 
-  # gam.check(fit_gamma, rep = 500)
+  # determine k
+  gam.check(fit_gamma, rep = 500)
+  
   capture.output(
     summary(fit_gamma),
     file = paste0(
@@ -562,6 +627,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     )
   )
 
+  # write gam with beta family
   fit_beta <- bam(dti_fa ~ group +
     sex +
     s(nodeID, by = group, k = 40) +
@@ -571,7 +637,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   method = "REML"
   )
 
-  # gam.check(fit_beta, rep = 500)
+  gam.check(fit_beta, rep = 500)
   capture.output(
     summary(fit_beta),
     file = paste0(
@@ -580,6 +646,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   )
 
   if (tract == "FA") {
+    # write gam with Gaussian family
     fit_gaussian <- bam(dti_fa ~ group +
       sex +
       s(nodeID, by = group, k = 40) +
@@ -589,7 +656,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     method = "REML"
     )
 
-    # gam.check(fit_beta, rep = 500)
+    gam.check(fit_beta, rep = 500)
     capture.output(
       summary(fit_gaussian),
       file = paste0(
@@ -600,9 +667,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     )
   }
 
-
+  # determine which model to keep
   # infoMessages('on')
-  # compareML(fit_gamma, fit_beta)  # fit_gamma recommended
+  # compareML(fit_gamma, fit_beta)
   capture.output(
     compareML(fit_gamma, fit_beta),
     file = paste0(
@@ -623,8 +690,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     )
   }
 
-
-  ### Model tract with covariates
+  # model tract with covariates
   if (tract == "FA") {
     fit_cov_pds <- bam(dti_fa ~ group +
       sex +
@@ -646,9 +712,9 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     method = "REML"
     )
   }
-
-
-  # gam.check(fit_cov_pds, rep = 500)
+  
+  # determine k
+  gam.check(fit_cov_pds, rep = 500)
   capture.output(
     summary(fit_cov_pds),
     file = paste0(
@@ -658,7 +724,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
     )
   )
 
-  # Test cov model against gamma
+  # test cov model against non-covariate
   if (tract == "FA") {
     capture.output(
       compareML(fit_gaussian, fit_cov_pds),
@@ -686,12 +752,23 @@ plot_spline_diff_pair <- function(gam_model,
                                   g_type, 
                                   factor_a, 
                                   factor_b) {
-
-  ### --- Notes:
+  # Draw a spline-difference plot for 2 splines
   #
   # This will make plots and write tables of sig
-  #   node differences for GAM splines bx 2 factors (groups)
+  # node differences for GAM splines bx 2 factors (groups)
+  #
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
+  #   factor_a = group factor (0-2)
+  #   factor_b = group factor (0-2)
+  #
+  # Writes:
+  #   gam_plot_dir/Plot_Diff_*_pair.png
+  #   table_dir/Table_Diff_*.txt
 
+  # set output
   png(
     filename = paste0(
       gam_plot_dir, "Plot_Diff_", tract, "_", "G", g_type, "_pair.png"
@@ -699,9 +776,11 @@ plot_spline_diff_pair <- function(gam_model,
     width = 600, height = 600
   )
 
+  # setup for plotting
   group_a <- switch_plot_values(factor_a, g_type)[[2]][1]
   group_b <- switch_plot_values(factor_b, g_type)[[2]][1]
 
+  # draw plot, save txt table
   par(mar = c(5, 5, 4, 2), family = "Times New Roman")
   capture.output(plot_diff(gam_model,
     view = "nodeID",
@@ -731,12 +810,21 @@ plot_spline_diff_pair <- function(gam_model,
 }
 
 plot_split_diff_mult <- function(gam_model, tract, g_type) {
-
-  ### --- Notes:
+  # Draw 3 sets of spline-difference plot for 2 splines
   #
-  # This will draw plots and write tables of sig
-  #   node differences for GAM when group style=2
+  # This will make paiwise plots and write tables of sig
+  # node differences for GAM splines bx 3 groups (0-1, 0-2, 1-2).
+  #
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
+  #
+  # Writes:
+  #   gam_plot_dir/Plot_Diff_*_mult.png
+  #   table_dir/Table_Diff_*.txt
 
+  # start file
   png(
     filename = paste0(
       gam_plot_dir, "Plot_Diff_",
@@ -746,11 +834,14 @@ plot_split_diff_mult <- function(gam_model, tract, g_type) {
     height = 600
   )
 
+  # set up for plotting
   group_a <- switch_plot_values("0", g_type)[[2]][1]
   group_b <- switch_plot_values("1", g_type)[[2]][1]
   group_c <- switch_plot_values("2", g_type)[[2]][1]
 
   par(mfrow = c(1, 3), mar = c(5, 6, 4, 2), family = "Times New Roman")
+  
+  # plot 0-1
   capture.output(plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("0", "1")),
@@ -773,6 +864,7 @@ plot_split_diff_mult <- function(gam_model, tract, g_type) {
   )
   )
 
+  # add plot 0-2
   par(mar = c(5, 3, 4, 2))
   capture.output(plot_diff(gam_model,
     view = "nodeID",
@@ -796,6 +888,7 @@ plot_split_diff_mult <- function(gam_model, tract, g_type) {
   )
   )
 
+  # add plot 1-2
   capture.output(plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c("1", "2")),
