@@ -49,6 +49,11 @@ trad_dir <- paste0(data_dir, "traditional/")
 
 
 # General Functions ------
+#
+# Functions that support others, switches, make the
+# master dataframes, and conduct stat tests on group x
+# memory metrics.
+
 find_group_1 <- function(search_str, df_adis, ind_adis) {
   # Determine group for g_type=1
   #
@@ -58,8 +63,8 @@ find_group_1 <- function(search_str, df_adis, ind_adis) {
   #   ind_adis = index of subject in df_adis
   #
   # Returns:
-  #   1 = adis has "Anxiety" or "Phobia"
-  #   0 = adis has "None"
+  #   int - 1 = adis has "Anxiety" or "Phobia"
+  #         0 = adis has "None"
   #
   # TODO:
   #   Could be update so 0 is catch all
@@ -82,9 +87,9 @@ find_group_2 <- function(search_str, df_adis, ind_adis) {
   #   ind_adis = index of subject in df_adis
   #
   # Returns: 
-  #   1 = GAD is dx 1, or dx GAD but SAD is not dx 1
-  #   2 = SAD, contains search string
-  #   0 = No dx
+  #   int - 1 = GAD is dx 1, or dx GAD but SAD is not dx 1
+  #         2 = SAD, contains search string
+  #         0 = No dx
   
   if (
     grepl("Gen", df_adis[ind_adis, ]$Diagnosis.1) == T |
@@ -111,9 +116,9 @@ find_group_3 <- function(pars_score) {
   #   pars_score = subject's PARS6 score
   #
   # Returns:
-  #   0 = Low, pars6 <= 3
-  #   1 = Med, 3 < pars6 <= 12
-  #   2 = High, pars6 > 12
+  #   int - 0 = Low, pars6 <= 3
+  #         1 = Med, 3 < pars6 <= 12
+  #         2 = High, pars6 > 12
   
   if (pars_score <= 3) {
     return(0)
@@ -310,7 +315,8 @@ switch_plot_values <- function(value, g_type) {
   #   g_type = grouping type (1-3)
   #
   # Returns:
-  #   named list of lists - [[1]] = color, [[2]] = group
+  #   x_col, x_label = indexed lists
+  #     [[1]] = color, [[2]] = group label
   #
   # Notes:
   #   Does not currently support g_type=1
@@ -347,7 +353,7 @@ switch_tract_name <- function(tract) {
   #   tract = AFQ tract string
   #
   # Returns:
-  #   reformatted tract name
+  #   x_tract = str, reformatted tract name
 
   x_tract <- switch(
     tract,
@@ -480,6 +486,11 @@ calc_memory_stats <- function(df_afq, g_type) {
 
 
 # GAM Functions ------
+#
+# Functions for calculating GAMs, drawing splines, testing
+# for differences between splines, and making dataframes of
+# FA values for nodes which differ between groups.
+
 plot_gam_splines <- function(gam_model, tract, g_type, df_tract) {
   # Plot splines for a GAM
   #
@@ -581,7 +592,7 @@ calc_gam_stats <- function(tract, df_tract, g_type) {
   #   gam_stats_dir/Stats_GAM-*.txt
   #
   # Returns:
-  #   preferred GAM object (fit_cov_pds) for each tract   
+  #   fit_cov_pds = preferred GAM object for each tract   
   #
   # Notes: 
   #   1) Given that k=40 was appropriate for each tract, and the covariate
@@ -915,12 +926,20 @@ plot_split_diff_mult <- function(gam_model, tract, g_type) {
 }
 
 make_spline_diff_pair_df <- function(gam_model, factor_a, factor_b) {
-
-  ### --- Notes:
+  # Make a dataframe of fit differences when testing 2 splines
   #
-  # Returns a dataframe of difference
-  #   scores for each node.
+  # Get difference values from testing whether spline A
+  # differs from spline B at each node.
+  #
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #   factor_a = group factor (0-2)
+  #   factor_b = group factor (0-2)
+  #
+  # Returns:
+  #   df_pair = dataframe of differences
 
+  # determine predicted differences
   df_pair <- plot_diff(gam_model,
     view = "nodeID",
     comp = list(group = c(factor_a, factor_b)),
@@ -928,17 +947,23 @@ make_spline_diff_pair_df <- function(gam_model, factor_a, factor_b) {
     plot = F
   )
 
+  # add Comparison column to df
   colnames(df_pair) <- c(colnames(df_pair[, 1:4]), "Comp")
   df_pair$Comp <- paste0(factor_a, factor_b)
   return(df_pair)
 }
 
 make_spline_diff_mult_df <- function(gam_model) {
-
-  ### --- Notes:
+  # Make a dataframe of fit differences when testing multiple splines
   #
-  # Returns a dataframe of difference
-  #   scores for each node.
+  # Get difference values from testing whether between
+  # multiple splines (0-1, 0-2, 1-2)
+  #
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #
+  # Returns:
+  #   df_out = dataframe of differences
 
   p01 <- plot_diff(gam_model,
     view = "nodeID",
@@ -980,21 +1005,27 @@ calc_spline_diff <- function(gam_model,
                              g_type, 
                              tog_pair_mult, 
                              comp_list) {
-
-  ### --- Notes:
+  # Investigate whether differences exist between spline fit FAs
   #
-  # 1) Makes plots and tables
-  #     Tables are not currently used,
-  #     func_plot_diff and func_mkdf_diff could
-  #     be combined.
+  # This function does a number of things:
+  #   1) Makes plots and tables (wraps appropriate function)
+  #       Tables are not currently used, func_plot_diff and 
+  #       func_mkdf_diff could be combined. 
+  #   2) Make dataframes of difference estimates
+  #   3) Determine nodes that differ in difference estimation 
+  #       for average. Repeats what is done in tables.
+  #       Also gets node of maximum difference (unused).
   #
-  # 2) Make dataframes of difference estimates
+  # Arguments:
+  #   gam_model = GAM object, produced by gam/bam
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
+  #   tog_pair_mult = toggle to select (pair, mult) functions
+  #   comp_list = list of 2 factors for pairwise comparison
   #
-  # 3) Determine nodes that differ in difference
-  #     estimation. Repeats what is done in tables.
-  #     Also gets max node.
-  #
-  # Returns list of nodes, max node
+  # Returns:
+  #   diff_list, node_max = indexed list of nodes which differed
+  #     [[1]] = nodes which differed, [[2]] = node of maximum difference
 
   # make plots and tables
   if (tog_pair_mult == "pair") {
@@ -1005,7 +1036,9 @@ calc_spline_diff <- function(gam_model,
 
   # get plot_diff data frames
   if (tog_pair_mult == "pair") {
-    df_est_diff <- make_spline_diff_pair_df(gam_model, comp_list[1], comp_list[2])
+    df_est_diff <- make_spline_diff_pair_df(
+      gam_model, comp_list[1], comp_list[2]
+    )
   } else if (tog_pair_mult == "mult") {
     df_est_diff <- make_spline_diff_mult_df(gam_model)
   }
@@ -1027,15 +1060,22 @@ calc_spline_diff <- function(gam_model,
       }
     } else if (tog_pair_mult == "mult") {
       if (
-        (abs(df_est_diff[ind_node[1], ]$est) - df_est_diff[ind_node[1], ]$CI) > 0 &
-          (abs(df_est_diff[ind_node[2], ]$est) - df_est_diff[ind_node[2], ]$CI) > 0 &
-          (abs(df_est_diff[ind_node[3], ]$est) - df_est_diff[ind_node[3], ]$CI) > 0
+        (abs(
+          df_est_diff[ind_node[1], ]$est) - df_est_diff[ind_node[1], ]$CI
+         ) > 0 &
+          (abs(
+            df_est_diff[ind_node[2], ]$est) - df_est_diff[ind_node[2], ]$CI
+           ) > 0 &
+          (abs(
+            df_est_diff[ind_node[3], ]$est) - df_est_diff[ind_node[3], ]$CI
+           ) > 0
       ) {
         diff_list <- c(diff_list, node)
       }
     }
   }
-
+  
+  # account for no differences
   if (length(diff_list) == 0) {
     return(NA)
     stop
@@ -1050,7 +1090,6 @@ calc_spline_diff <- function(gam_model,
     f_sum <- function(x) {
       sum(abs(df_est_diff[which(df_est_diff$nodeID == x), ]$est))
     }
-
     h_sum <- sapply(diff_list, f_sum)
     names(h_sum) <- diff_list
     h_max <- which(h_sum == max(h_sum))
@@ -1062,14 +1101,33 @@ calc_spline_diff <- function(gam_model,
 
 
 # LM Functions ------
+#
+# Functions for making appropriate dataframes, calculating
+# multiple linear regression, and drawing plots.
+
 make_diff_df <- function(df_tract, node_list, g_type, avg_max) {
-
-  ### --- Notes:
+  # Make a dataframe of FAs from certain nodes
   #
-  # Returns a data frame for linear models
-  #   with either average FA or max FA
-  #   difference
+  # Each subject will have either the averaged FA value for 
+  # all nodes which differed between splines, or the node which
+  # had a maximum difference.
+  #
+  # Arguments:
+  #   df_tract = AFQ dataframe for specific tract
+  #   node_list = list of nodes which differed (calc_spline_diff)
+  #   g_type = grouping type (1-3)
+  #   avg_max = toggle for whether to select the average or max (avg, max)
+  #
+  # Returns: 
+  #   df_out = dataframe for linear models with either average FA or max FA
+  #     difference
+  #
+  # Notes:
+  #   All subjects are reflected in returned df even though the differences
+  #   may come from comparing group A vs B splines. The proper groups are 
+  #   dealt with in calc_lm_stats.
 
+  # start dataframe
   subj_list <- unique(df_tract$subjectID)
   df_out <- as.data.frame(matrix(NA, nrow = length(subj_list), ncol = 8))
   colnames(df_out) <- c(
@@ -1078,6 +1136,7 @@ make_diff_df <- function(df_tract, node_list, g_type, avg_max) {
   )
   df_out$subj <- subj_list
 
+  # fill dataframe
   for (subj in subj_list) {
     ind_out <- which(df_out$subj == subj)
     df_subj <- df_tract[which(df_tract$subjectID == subj), ]
@@ -1089,6 +1148,8 @@ make_diff_df <- function(df_tract, node_list, g_type, avg_max) {
     df_out[ind_out, ]$neg_lgi <- df_subj[1, ]$neg_lgi
     df_out[ind_out, ]$neg_ldi <- df_subj[1, ]$neg_ldi
 
+    # get either averaged FA value for nodes which differed, or
+    #   FA from node which maximally differed
     if (avg_max == "avg") {
       df_node <- subset(df_subj, nodeID %in% node_list)
       df_out[ind_out, ]$fa_value <- round(mean(df_node$dti_fa), 4)
@@ -1102,9 +1163,20 @@ make_diff_df <- function(df_tract, node_list, g_type, avg_max) {
 
 plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
 
-  ### --- Notes:
+  # Plot two linear models
   #
-  # Plots LM of A and B
+  # Arguments:
+  #   df_plot = dataframe of FAs, memory indices
+  #   avg_max = toggle, whether df_plot has avg or max FA values
+  #   mem = str, memory index (currently hardcoded to NegLGI)
+  #   factor_a = group factor (0-2)
+  #   factor_b = group factor (0-2)
+  #
+  # Writes:
+  #   lm_plot_dir/Plot_LM-*.png
+  #
+  # TODO:
+  #   y_title could come from a switch
 
   # determine labels
   h_labels <- c(
@@ -1172,11 +1244,20 @@ plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
 }
 
 plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
-
-  ### --- Notes:
+  # Plot multiple linear plots
   #
-  # Plots A, B, and C
+  # Draw 3 linear plots, one for each group factor (0-2)
+  #
+  # Arguments:
+  #   df_plot = dataframe of FAs, memory indices
+  #   avg_max = toggle, whether df_plot has avg or max FA values
+  #   mem = str, memory index
+  #   g_type = grouping type (1-3)
+  #
+  # Writes:
+  #   lm_plot_dir/Plot_LM-*.png
 
+  # set up for plotting
   h_labels <- c(
     switch_plot_values("0", g_type)[[2]][1],
     switch_plot_values("1", g_type)[[2]][1],
@@ -1184,6 +1265,7 @@ plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
   )
   h_tract <- switch_tract_name(tract)
 
+  # get data for 3 plots
   plot1.x <- df_plot[which(df_plot$group == 0), ]$fa_value
   plot1.y <- df_plot[which(df_plot$group == 0), ]$mem_score
 
@@ -1193,6 +1275,7 @@ plot_lm_mult <- function(df_plot, avg_max, mem, g_type) {
   plot3.x <- df_plot[which(df_plot$group == 2), ]$fa_value
   plot3.y <- df_plot[which(df_plot$group == 2), ]$mem_score
 
+  # draw plot
   h_title <- paste(
     h_tract, "Spline Differences Predicting Memory Performance"
   )
@@ -1257,11 +1340,25 @@ calc_lm_stats <- function(
                           avg_max, 
                           tog_pair_mult, 
                           comp_list) {
-
-  ### --- Notes:
+  # Conduct multiple linear regression
   #
-  # Conduct linear model for list of mem scores
-  #   then make plots.
+  # Test whether a difference in association exists between groups
+  # on relation between tract FA and memory index. Submits plot_lm 
+  # functions.
+  #
+  # Arguments:
+  #   df_lm = dataframe with tract FAs, memory indices, group, etc
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
+  #   avg_max = toggle, whether df_plot has avg or max FA values
+  #   tog_pair_mult = toggle to select (pair, mult) functions
+  #   comp_list = list of 2 factors for pairwise comparison
+  #
+  # Writes:
+  #   lm_stats_dir/Stats_LM-*.txt
+  #
+  # Notes:
+  #   currently only testing neg_lgi
 
   # mem_list <- c("neu_lgi", "neu_ldi","neg_lgi", "neg_ldi")
   mem_list <- "neg_lgi"
@@ -1311,8 +1408,22 @@ calc_lm_stats <- function(
 
 
 # Traditional Approach -----
+#
+# A set of function to investigate the interaction of
+# sex, pars6, and pds using the "traditional" approach, i.e.
+# taking an average FA value for an entire tract.
 
 plot_trad_lm <- function(fac_str, tract, df_trad, out_str) {
+  # Plot a linear relation between FA and covariate
+  #
+  # Arguments:
+  #   fac_str = string for selecting a specific covariate (pds, pars6)
+  #   tract = AFQ tract name
+  #   df_trad = dataframe of averge tract FA, group values
+  #   out_str = string to avoid overwriting output
+  #
+  # Writes:
+  #   trad_dir/Plot_lm_*.png
 
   # make plot
   h_tract <- switch_tract_name(tract)
@@ -1336,6 +1447,21 @@ plot_trad_lm <- function(fac_str, tract, df_trad, out_str) {
 }
 
 calc_trad_lm <- function(df_trad, tract) {
+  # Conduct linear regression for FA values
+  #
+  # Will test relation between FA and pds, pars6, sex. FDR
+  # corrects for multiple tests. Uses t-test to see if differences
+  # exist between sex, linear models for pds, pars6. Also
+  # investigates interaction of FA and pds/pars6 for each sex.
+  #
+  # Arguments:
+  #   df_trad = dataframe of averge tract FA, group values
+  #   tract = AFQ tract name
+  #
+  # Writes:
+  #   trad_dir/lm_*txt
+  #   trad_dir/tt_*.txt
+  #   trad_dir/fdr_*.txt
 
   # start fdr table
   fdr_table <- as.data.frame(matrix(NA, nrow = 1, ncol = 2))
@@ -1442,6 +1568,15 @@ calc_trad_lm <- function(df_trad, tract) {
 }
 
 make_trad_df <- function(df_tract, tract, g_type) {
+  # Make a dataframe of averaged FA values per tract
+  #
+  # Also contains group values/factors and covariates. Then
+  # submits the calc/plot_trad_lm functions.
+  #
+  # Arguments:
+  #   df_tract = AFQ dataframe for specific tract
+  #   tract = AFQ tract name
+  #   g_type = grouping type (1-3)
 
   # get subjects
   subj_list <- unique(df_tract$subjectID)
@@ -1479,70 +1614,75 @@ make_trad_df <- function(df_tract, tract, g_type) {
 
 
 # Work ------
+#
+# Use the various functions above to model tract FA values
+# for the various groups, controlling for covariates. Also
+# find differences, and test whether FA differences are 
+# related to memory outcomes.
+#
+# Variables:
+#   group_type = whether to make groups with method
+#     1 (adis), 2 (dx), or 3 (pars6)
+#   tract_list = list of AFQ tracts to model
+#   tog_pair_mult = whether to test between a (pair) of
+#     splines and linear models, or between all 
+#     combinations of pairs (mult)
+#
+# Notes:
+#   group_type currently set to 3, and type 1 is not supported
+#     by some functions above.
+#   Planned pairwise (tog_pair_mult = pair) are set between
+#     control and anx (g_type=2) or low and high anx (g_type=3).
 
 # group_type <- c(1:3)
 group_type <- 3
 tract_list <- c("UNC_L", "UNC_R", "FA")
-
-# for spline comparisons, linear models, set toggle to
-#   determine whether to compare all ("mult")
-#   or a pair ("pair").
-#
-# If pair is set as toggle, determine groups to compare
-#   and set factors as string.
 tog_pair_mult <- "pair"
-# g2_pair_list <- c("0", "2")
+g2_pair_list <- c("0", "2")
 g3_pair_list <- c("0", "2")
-
 
 # Do work for each planned group_type
 for (g_type in group_type) {
 
-  # make/get data, assign factor
+  # make/get master data, assign factors
   data_file <- paste0(data_dir, "Master_dataframe_G", g_type, ".csv")
-
   if (!file.exists(data_file)) {
     make_master_df(g_type)
   }
-
   df_afq <- read.csv(data_file)
   df_afq$group <- factor(df_afq$group)
   df_afq$sex <- factor(df_afq$sex)
 
-  # Check Memory behavior
+  # Check memory behavior
   calc_memory_stats(df_afq, g_type)
 
-  # get comp list
+  # get comparison list
   if (tog_pair_mult == "pair") {
     h_var <- paste0("g", g_type, "_pair_list")
     comp_list <- get(h_var)
   }
 
+  # work on each tract
   for (tract in tract_list) {
 
-    # subset df_afq for tract
+    # subset df_afq for tract, round FA values
     df_tract <- df_afq[which(df_afq$tractID == tract), ]
     df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
-    # do traditional method
+    # do traditional methods
     make_trad_df(df_tract, tract, g_type)
 
     # run gam, plot
     gam_file <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
-
     if (!file.exists(gam_file)) {
       h_gam <- calc_gam_stats(tract, df_tract, g_type)
       saveRDS(h_gam, file = gam_file)
       rm(h_gam)
     }
-
     gam_model <- readRDS(gam_file)
     plot_gam_splines(gam_model, tract, g_type, df_tract)
 
     # determine nodes of group differences
-    #   Use "mult" to compare bx >2 groups, and note
-    #     that differences between splines will be for
-    #     nodes which differed between ALL groups
     node_list <- calc_spline_diff(
       gam_model, tract, g_type, tog_pair_mult, comp_list
     )
@@ -1552,12 +1692,12 @@ for (g_type in group_type) {
       next
     }
 
-    # avg lm
+    # lm of averaged FA differences
     avg_node_list <- node_list[[1]]
     df_avg <- make_diff_df(df_tract, avg_node_list, g_type, "avg")
     calc_lm_stats(df_avg, tract, g_type, "avg", tog_pair_mult, comp_list)
 
-    # # max lm
+    # # lm of max FA difference
     # max_node_list <- node_list[[2]]
     # df_max <- make_diff_df(df_tract, max_node_list, g_type, "max")
     # calc_lm_stats(df_max, tract, g_type, "max", tog_pair_mult, comp_list)
