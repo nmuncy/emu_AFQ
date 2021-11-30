@@ -32,3 +32,15 @@ etaSquared(stat_age)
 stat_pds <- aov(PDS ~ as.factor(Group), data = df_subset)
 summary(stat_pds)
 etaSquared(stat_pds)
+
+
+# Male vs Female PDS, age -----
+pds_female <- df_subset[which(df_subset$sex == 0),]$pds
+pds_male <- df_subset[which(df_subset$sex == 1),]$pds
+t.test(pds_female, pds_male, paired=FALSE)  
+
+age_female <- df_subset[which(df_subset$sex == 0),]$age
+age_male <- df_subset[which(df_subset$sex == 1),]$age
+t.test(age_female, age_male, paired=FALSE) 
+  
+  
