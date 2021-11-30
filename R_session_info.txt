@@ -1,0 +1,51 @@
+R version 4.0.3 (2020-10-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods  
+[7] base     
+
+other attached packages:
+ [1] lsr_0.5.1          ggpubr_0.4.0       lme4_1.1-27.1     
+ [4] Matrix_1.3-4       dplyr_1.0.7        ez_4.4-0          
+ [7] mgcViz_0.1.9       qgam_1.3.3         itsadug_2.4       
+[10] plotfunctions_1.4  ggplot2_3.3.5      fitdistrplus_1.1-6
+[13] survival_3.2-13    MASS_7.3-54        tidymv_3.2.1      
+[16] mgcv_1.8-38        nlme_3.1-153      
+
+loaded via a namespace (and not attached):
+ [1] viridis_0.6.2      tidyr_1.1.4        viridisLite_0.4.0 
+ [4] splines_4.0.3      foreach_1.5.1      carData_3.0-4     
+ [7] shiny_1.7.1        assertthat_0.2.1   cellranger_1.1.0  
+[10] yaml_2.2.1         backports_1.2.1    pillar_1.6.4      
+[13] lattice_0.20-45    glue_1.4.2         digest_0.6.28     
+[16] ggsignif_0.6.3     RColorBrewer_1.1-2 promises_1.2.0.1  
+[19] minqa_1.2.4        colorspace_2.0-2   htmltools_0.5.2   
+[22] httpuv_1.6.3       plyr_1.8.6         pkgconfig_2.0.3   
+[25] broom_0.7.9        haven_2.4.3        purrr_0.3.4       
+[28] xtable_1.8-4       scales_1.1.1       openxlsx_4.2.4    
+[31] later_1.3.0        rio_0.5.27         tibble_3.1.5      
+[34] generics_0.1.0     car_3.0-11         ellipsis_0.3.2    
+[37] withr_2.4.2        magrittr_2.0.1     crayon_1.4.1      
+[40] readxl_1.3.1       mime_0.12          GGally_2.1.2      
+[43] fansi_0.5.0        doParallel_1.0.16  rstatix_0.7.0     
+[46] forcats_0.5.1      foreign_0.8-81     tools_4.0.3       
+[49] data.table_1.14.2  hms_1.1.1          lifecycle_1.0.1   
+[52] matrixStats_0.61.0 gamm4_0.2-6        stringr_1.4.0     
+[55] munsell_0.5.0      zip_2.2.0          compiler_4.0.3    
+[58] rlang_0.4.12       grid_4.0.3         nloptr_1.2.2.2    
+[61] iterators_1.0.13   miniUI_0.1.1.1     boot_1.3-28       
+[64] gtable_0.3.0       codetools_0.2-18   abind_1.4-5       
+[67] DBI_1.1.1          reshape_0.8.8      curl_4.3.2        
+[70] reshape2_1.4.4     R6_2.5.1           gridExtra_2.3     
+[73] fastmap_1.1.0      utf8_1.2.2         KernSmooth_2.23-20
+[76] stringi_1.7.5      parallel_4.0.3     Rcpp_1.0.7        
+[79] vctrs_0.3.8        tidyselect_1.1.1  
