@@ -6,17 +6,13 @@ custom_tractography_bids_filters = ""
 
 [REGISTRATION]
 b0_threshold = 50
-patch2self = false
 robust_tensor_fitting = false
 min_bval = ""
 max_bval = ""
 reg_template = "mni_T1"
 reg_subject = "power_map"
 brain_mask = "B0Mask({})"
-mapping = "SynMap(True, {}, {})"
-
-[PROFILE]
-profile_weights = "gauss"
+use_prealign = 1
 
 [BUNDLES]
 bundle_info = ""
@@ -28,6 +24,29 @@ dask_it = false
 [VIZ]
 virtual_frame_buffer = false
 viz_backend = "plotly_no_gif"
+
+[SEGMENTATION]
+endpoint_info = ""
+nb_points = false
+nb_streamlines = false
+seg_algo = "AFQ"
+reg_algo = ""
+clip_edges = false
+progressive = true
+greater_than = 50
+rm_small_clusters = 50
+model_clust_thr = 5
+reduction_thr = 20
+refine = false
+pruning_thr = 5
+b0_threshold = 50
+prob_threshold = 0
+dist_to_waypoint = ""
+rng = ""
+return_idx = false
+filter_by_endpoints = true
+dist_to_atlas = 4
+save_intermediates = ""
 
 [TRACTOGRAPHY]
 directions = "prob"
@@ -46,32 +65,6 @@ max_length = 1000
 odf_model = "DTI"
 tracker = "local"
 
-[SEGMENTATION]
-nb_points = false
-nb_streamlines = false
-seg_algo = "AFQ"
-reg_algo = ""
-clip_edges = false
-parallel_segmentation = "{'n_jobs': -1, 'engine': 'joblib', 'backend': 'loky'}"
-progressive = true
-greater_than = 50
-rm_small_clusters = 50
-model_clust_thr = 1.25
-reduction_thr = 25
-refine = false
-pruning_thr = 12
-b0_threshold = 50
-prob_threshold = 0
-dist_to_waypoint = ""
-rng = ""
-return_idx = false
-presegment_bundle_dict = ""
-presegment_kawrgs = "{}"
-filter_by_endpoints = true
-endpoint_info = ""
-dist_to_atlas = 4
-save_intermediates = ""
-
 [CLEANING]
 n_points = 100
 clean_rounds = 5
@@ -83,3 +76,9 @@ return_idx = false
 
 [files]
 dmriprep_folder = "/scratch/madlab/emu_AFQ/derivatives/dwi_preproc"
+
+[pyAFQ]
+utc_time_started = '2021-02-18T13:38:16.381195'
+version = '0.7.dev1160502430'
+platform = 'Linux'
+utc_time_ended = '2021-02-20T02:02:32.817276'

@@ -15,25 +15,10 @@ function Usage {
         <data_dir>/derivatives/<deriv_dir> to
         <proc_dir>/derivatives/<deriv_dir>.
 
-    Note: in our file structure, bval exists in dset, while
-    bvec and nii exist in derivatives/<deriv_dir>.
-
     Finally afq_step1_setup.py will be submitted with required
     args.
 
-    Usage:
-
-        afq_step1_submit.sh \\
-            -c /path/to/code_dir \\
-            -d /path/to/data_dir \\
-            -p /path/to/proc_dir \\
-            -s ses-str \\
-            -r run-str \\
-            -x deriv_dir \\
-            -j json-file
-
     Required Arguments:
-
         -c </path/to/code_dir> = location of afq_step1_setup.py
             Note: for wrapping python, have config.toml in the code_dir
         -d </path/to/data_dir> = location of BIDS-structured stored project
@@ -47,22 +32,23 @@ function Usage {
         -j <json-file> = BIDS dataset_description.json sidecar
 
     Example Usage:
-
-        afq_step1_submit.sh \\
-            -c ~/compute/emu_AFQ \\
+        ./afq_step1_submit.sh \\
+            -c /home/nmuncy/compute/emu_AFQ \\
             -d /home/data/madlab/McMakin_EMUR01 \\
             -p /scratch/madlab/emu_AFQ \\
             -s ses-S2 \\
             -r run-1 \\
             -x dwi_preproc \\
-            -j /home/data/madlab/McMakin_EMUR01/dataset_description.json
+            -j /home/data/madlab/McMakin_EMUR01/dset/dataset_description.json
+
+    Notes:
+        In our file structure, bval exists in dset, while
+        bvec and nii exist in derivatives/<deriv_dir>.
 USAGE
 }
 
 
-# clear variables and assign
-unset code_dir data_dir proc_dir sess run diff_dir
-
+# capture arguments
 while getopts ":c:d:p:s:r:x:j:h" OPT
     do
     case $OPT in
@@ -92,30 +78,62 @@ while getopts ":c:d:p:s:r:x:j:h" OPT
 done
 
 
-# check inputs
+# print help if no arg
 if [ $OPTIND == 1 ]; then
     Usage
     exit 0
 fi
 
-if [ -z "$code_dir" ] || \
-    [ -z "$data_dir" ] || \
-    [ -z "$proc_dir" ] || \
-    [ -z "$sess" ] || \
-    [ -z "$run" ] || \
-    [ -z "$diff_dir" ] || \
-    [ -z "$json_file" ]; then
-    echo -e "\n \t ERROR: all required arguments not defined." >&2
+
+# make sure required args have values - determine which (first) arg is empty
+function emptyArg {
+    case $1 in
+        code_dir) h_ret="-c"
+            ;;
+        data_dir) h_ret="-d"
+            ;;
+        proc_dir) h_ret="-p"
+            ;;
+        sess) h_ret="-s"
+            ;;
+        run) h_ret="-r"
+            ;;
+        diff_dir) h_ret="-x"
+            ;;
+        json_file) h_ret="-j"
+            ;;
+        *)
+            echo -n "Unknown option."
+            ;;
+    esac
+    echo -e "\n\n \t ERROR: Missing input parameter for \"${h_ret}\"." >&2
     Usage
     exit 1
-fi
+}
 
+for opt in code_dir data_dir proc_dir sess run diff_dir json_file; do
+    h_opt=$(eval echo \${$opt})
+    if [ -z $h_opt ]; then
+        emptyArg $opt
+    fi
+done
+
+
+# check required files exist
 if [ ! -f ${code_dir}/afq_step1_setup.py ]; then
     echo -e "\n \t ERROR: afq_step1_setup.py not detected in $code_dir." >&2
     Usage
     exit 1
 fi
 
+if [ ! -f $json_file ]; then
+    echo -e "\n \t ERROR: $json_file not found." >&2
+    Usage
+    exit 1
+fi
+
+
+# check required directories exist
 if [ ! -d $data_dir ]; then
     echo -e "\n \t ERROR: $data_dir not found or is not a directory." >&2
     Usage
@@ -128,23 +146,18 @@ if [ ! -d ${data_dir}/derivatives/$diff_dir ]; then
     exit 1
 fi
 
-if [ ! -f $json_file ]; then
-    echo -e "\n \t ERROR: $json_file not found." >&2
-    Usage
-    exit 1
-fi
 
+# print report
 cat << EOF
 
     Success! Checks passed, starting work with the following variables:
-
-    code_dir=$code_dir
-    data_dir=$data_dir
-    proc_dir=$proc_dir
-    sess=$sess
-    run=$run
-    diff_dir=$diff_dir
-    json_file=$json_file
+        code_dir=$code_dir
+        data_dir=$data_dir
+        proc_dir=$proc_dir
+        sess=$sess
+        run=$run
+        diff_dir=$diff_dir
+        json_file=$json_file
 
 EOF
 

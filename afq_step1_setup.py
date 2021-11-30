@@ -1,55 +1,78 @@
-"""Setup config.toml file for AFQ
+"""Setup config.toml file for AFQ.
 
 This script will edit the BIDs file dataset_description.json
 with values needed by AFQ. It will then edit the AFQ
 configuration file config.toml with project-specific values.
 
 It is wrapped by afq_step1_submit.sh.
+
+Examples
+--------
+python afq_step1_setup.py \\
+    -c config.toml \\
+    -b /scratch/madlab/emu_AFQ \\
+    -d /scratch/madlab/emu_AFQ/derivatives/dwi_preproc \\
+    -j /scratch/madlab/emu_AFQ/dataset_description.json \\
+    -p dwi_preproc
 """
 
 import os
+import sys
 import toml
 import json
-from argparse import ArgumentParser
+import textwrap
+from argparse import ArgumentParser, RawTextHelpFormatter
 
 
 def get_args():
-    parser = ArgumentParser("Receive bash args from afq_step1_submit.sh wrapper")
+    """Get and parse arguments."""
+    parser = ArgumentParser(description=__doc__, formatter_class=RawTextHelpFormatter)
     parser.add_argument(
+        "-p",
+        "--preproc-dwi",
+        type=str,
+        default="dwi_preproc",
+        help=textwrap.dedent(
+            """\
+            Description str for pre-processed DWI
+            (default : %(default)s)
+            """
+        ),
+    )
+    required_args = parser.add_argument_group("Required Arguments")
+    required_args.add_argument(
         "-c",
         "--config-file",
         help="/path/to/afq/config.toml",
         type=str,
         required=True,
     )
-    parser.add_argument(
+    required_args.add_argument(
         "-b",
         "--bids-directory",
         help="/path/to/bids/project_directory",
         type=str,
         required=True,
     )
-    parser.add_argument(
+    required_args.add_argument(
         "-d",
         "--deriv-directory",
         help="/path/to/bids/project_directory/derivatives/pre-processed_dwi",
         type=str,
         required=True,
     )
-    parser.add_argument(
+    required_args.add_argument(
         "-j",
         "--json-file",
         help="/path/to/bids/project_directory/dataset_description.json",
         type=str,
         required=True,
     )
-    parser.add_argument(
-        "-p",
-        "--preproc-dwi",
-        help="Description str for pre-processed DWI",
-        type=str,
-        default="dwi_preproc",
-    )
+
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
     return parser
 
 
