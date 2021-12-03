@@ -9,6 +9,7 @@ library("dplyr")
 library("lme4")
 library("ggpubr")
 library("lsr")
+library("rstatix")
 
 
 # Notes ----
@@ -446,19 +447,15 @@ calc_memory_stats <- function(df_afq, g_type) {
     df_mem$group <- group_value
     
     h_lm <- lm(neg_lgi ~ group, data = df_mem)
-    h_av <- aov(h_lm)
-    capture.output(
-      TukeyHSD(h_av),
-      file = paste0(memory_dir, "Stats_G", g_type, "_tuk.txt")
-    )
+    h_av <- aov(h_lm) %>% tukey_hsd()
     
-    # make a plot, draw high-low stat
+    # make a plot, draw tukey stats
     h_colors <- c(
       switch_plot_values("2", g_type)[[1]],
       switch_plot_values("0", g_type)[[1]],
       switch_plot_values("1", g_type)[[1]]
     )
-    post_comp <- list(c("High", "Low"))
+    
     ggboxplot(df_mem,
               y = "neg_lgi",
               x = "group",
@@ -469,10 +466,16 @@ calc_memory_stats <- function(df_afq, g_type) {
     ) +
       xlab("PARS6 Group") +
       ylab("Neg LGI") +
-      stat_compare_means(comparisons = post_comp) +
+      stat_pvalue_manual(
+        h_av, label = "p.adj", 
+        y.position = c(0.62, 0.67, 0.74)) +
       ggtitle("eMST Group Memory Performance") +
       rremove("legend") +
-      theme(text = element_text(family = "Times New Roman", face = "bold", size = 16))
+      theme(text = element_text(
+        family = "Times New Roman", 
+        face = "bold", 
+        size = 16
+      ))
     
     ggsave(
       paste0(memory_dir, "Plot_Box_G", g_type, "_neg_lgi.png"),
@@ -840,39 +843,6 @@ plot_spline_diff_pair <- function(gam_model,
       )
   }
   
-  
-  # # set output
-  # png(
-  #   filename = paste0(
-  #     gam_plot_dir, "Plot_Diff_", tract, "_", "G", g_type, "_pair.png"
-  #   ),
-  #   width = 600, height = 600
-  # )
-  # 
-  # par(mar = c(5, 5, 4, 2), family = "Times New Roman")
-  # capture.output(plot_diff(gam_model,
-  #   view = "nodeID",
-  #   comp = list(group = c(factor_a, factor_b)),
-  #   rm.ranef = T,
-  #   main = paste0(
-  #     "Difference Scores, ", group_a, "-", group_b
-  #   ),
-  #   ylab = "Est. FA difference",
-  #   xlab = "Tract Node",
-  #   cex.lab = 2,
-  #   cex.axis = 2,
-  #   cex.main = 2,
-  #   cex.sub = 1.5,
-  #   col.diff = "red"
-  # ),
-  # file = paste0(
-  #   table_dir,
-  #   "Table_Diff_",
-  #   tract, "_", "G",
-  #   g_type, "_",
-  #   factor_a, factor_b,
-  #   ".txt"
-  # ))
   par(mar = c(5, 4, 4, 2))
   dev.off()
 }
@@ -1695,7 +1665,7 @@ make_trad_df <- function(df_tract, tract, g_type) {
 group_type <- 3
 tract_list <- c("UNC_L", "UNC_R", "FA")
 tog_pair_mult <- "pair"
-g2_pair_list <- c("0", "2")
+# g2_pair_list <- c("0", "2")
 g3_pair_list <- c("0", "2")
 
 # Do work for each planned group_type
