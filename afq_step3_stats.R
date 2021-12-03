@@ -66,7 +66,7 @@ find_group_1 <- function(search_str, df_adis, ind_adis) {
   #   int - 1 = adis has "Anxiety" or "Phobia"
   #         0 = adis has "None"
   #
-  # TODO:
+  # Planned Enhancements:
   #   Could be update so 0 is catch all
   
   if (
@@ -147,7 +147,7 @@ make_master_df <- function(g_type) {
   #   1) References private_dir, a local dir that contains
   #     various csv files pulled from EMU SharePoint.
   # 
-  # TODO: 
+  # Planned Enhancements: 
   #   Make more efficient? Currently loops through e/subject
   #   to build master df row-by-row.
 
@@ -377,7 +377,7 @@ calc_memory_stats <- function(df_afq, g_type) {
   # Writes:
   #   memory_dir/Stats_*.txt, memory_dir/Plot_*.png
   #
-  # TODO: 
+  # Planned Enhancements: 
   #   Only pass df containing one measure per subject rather than
   #   entire df_afq.
 
@@ -772,13 +772,27 @@ plot_spline_diff_pair <- function(gam_model,
   #   gam_model = GAM object, produced by gam/bam
   #   tract = AFQ tract name
   #   g_type = grouping type (1-3)
-  #   factor_a = group factor (0-2)
-  #   factor_b = group factor (0-2)
+  #   factor_a = group factor (0-2), string
+  #   factor_b = group factor (0-2), string
   #
   # Writes:
   #   gam_plot_dir/Plot_Diff_*_pair.png
   #   table_dir/Table_Diff_*.txt
 
+  # setup for plotting
+  group_a <- switch_plot_values(factor_a, g_type)[[2]][1]
+  group_b <- switch_plot_values(factor_b, g_type)[[2]][1]
+  
+  # determine sig nodes
+  p_summary <- capture.output(plot_diff(gam_model,
+            view = "nodeID",
+            comp = list(group = c(factor_a, factor_b)),
+            rm.ranef = T,
+  ))
+  sig_regions <- p_summary[10:length(p_summary)]
+  sig_regions <- gsub("\\t", "", sig_regions)
+  sig_list <- as.list(strsplit(sig_regions, " - "))
+  
   # set output
   png(
     filename = paste0(
@@ -786,12 +800,7 @@ plot_spline_diff_pair <- function(gam_model,
     ),
     width = 600, height = 600
   )
-
-  # setup for plotting
-  group_a <- switch_plot_values(factor_a, g_type)[[2]][1]
-  group_b <- switch_plot_values(factor_b, g_type)[[2]][1]
-
-  # draw plot, save txt table
+  
   par(mar = c(5, 5, 4, 2), family = "Times New Roman")
   capture.output(plot_diff(gam_model,
     view = "nodeID",
@@ -814,8 +823,7 @@ plot_spline_diff_pair <- function(gam_model,
     g_type, "_",
     factor_a, factor_b,
     ".txt"
-  )
-  )
+  ))
   par(mar = c(5, 4, 4, 2))
   dev.off()
 }
@@ -1175,7 +1183,7 @@ plot_lm_pair <- function(df_plot, avg_max, mem, factor_a, factor_b) {
   # Writes:
   #   lm_plot_dir/Plot_LM-*.png
   #
-  # TODO:
+  # Planned Enhancements:
   #   y_title could come from a switch
 
   # determine labels
@@ -1669,8 +1677,8 @@ for (g_type in group_type) {
     df_tract <- df_afq[which(df_afq$tractID == tract), ]
     df_tract$dti_fa <- round(df_tract$dti_fa, 3)
 
-    # do traditional methods
-    make_trad_df(df_tract, tract, g_type)
+    # # do traditional methods
+    # make_trad_df(df_tract, tract, g_type)
 
     # run gam, plot
     gam_file <- paste0(data_dir, "G", g_type, "_gam_", tract, ".Rda")
