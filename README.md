@@ -10,7 +10,7 @@ Various scripts for organizing DWI data, running pyAFQ, and conducting statistic
 - step1_setup.py : Configure config.toml for pyAFQ CLI
 - step2_submit.sh : Wrap step2_CLI.sh
 - step2_CLI.sh : Run AFQ via pyAFQ on Slurm scheduled resources
-- step3_manuscript_stats.R : Code used to conduct all statistical analyses reported in the manuscript. Unused analyses, portions remain for potential future analyses and transparency
+- step3_manuscript_stats.R : Code used to conduct statistical analyses reported in the manuscript. Unused analyses, portions remain for potential future analyses and transparency.
 - step3_reduced_stats.R : Illustrative code to aid in the implementation of using a GAM method with AFQ output
 - step4_quick_stats.R : Quick queries for the manuscript
 - step5_reviewer_stats.R : Code written to address reviewer concerns, in addition to updates to step3_manuscript_stats.R and step4_quick_stats.R.
