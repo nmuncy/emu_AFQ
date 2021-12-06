@@ -465,6 +465,9 @@ calc_spline_diff <- function(gam_model,
 
 # Work ------
 #
+# Conduct GAM, compare splines between Low and High
+#   PARS-6 groups for the L Uncinate. Find nodes
+#   which differ between groups.
 #
 # Variables:
 #   tract = AFQ tract to model
