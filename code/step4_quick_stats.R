@@ -3,7 +3,8 @@ library("lsr")
 
 # Notes:
 #
-# Quick stats for the manuscript
+# This file contains quick/simple code for various tests
+#  in the manuscript.
 
 
 # Set Up -------

@@ -14,8 +14,9 @@ library("rstatix")
 
 # Notes ----
 #
-# This script reads in pyAFQ data and conducts a series of
-#   GAMs and pre-determined tracts.
+# This file contains the actual code used to read pyAFQ data 
+#   and conducts a series of GAMs on pre-determined tracts
+#   for the manuscript, as well as other statistics reported.
 #
 # Group differences in spline fits are then investigated,
 #   and the average of differential nodes are then used

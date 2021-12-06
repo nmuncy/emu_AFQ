@@ -2,11 +2,14 @@ library("ggplot2")
 
 # Notes ----
 #
+# This file contains code to address reviewer questions
+#  and concerns, in addition to updates in step3.
+#
 # Conduct a "point-wise" GLM for each node for a
-# set of tracts. Account for covariates and 
-# distribution of data in GLM. Test for differences
-# between two groups (to match plot_diff abilities),
-# apply and FDR correction, and plot.
+#   set of tracts. Account for covariates and 
+#   distribution of data in GLM. Test for differences
+#   between two groups (to match plot_diff abilities),
+#   apply and FDR correction, and plot.
 
 
 # Set Functions ----
