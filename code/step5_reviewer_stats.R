@@ -1,18 +1,16 @@
 library("ggplot2")
+library("fitdistrplus")
+library("mgcv")
+library("itsadug")
+
 
 # Notes ----
 #
 # This file contains code to address reviewer questions
-#  and concerns, in addition to updates in step3.
-#
-# Conduct a "point-wise" GLM for each node for a
-#   set of tracts. Account for covariates and 
-#   distribution of data in GLM. Test for differences
-#   between two groups (to match plot_diff abilities),
-#   apply and FDR correction, and plot.
+#  and concerns, in addition to updates to step3.
 
 
-# Set Functions ----
+# Set Switches ----
 stat_switch <- function(df_node, tract) {
   # Switch for using appropriate family with tracts.
   #
@@ -27,7 +25,7 @@ stat_switch <- function(df_node, tract) {
   #
   # Returns:
   #   h_stats = GLM model fit
-  
+
   h_stats <- switch(tract,
     "FA" = glm(dti_fa ~ group + sex + sex * pds,
       family = gaussian(link = "logit"),
@@ -58,14 +56,42 @@ switch_tract_name <- function(tract) {
   return(x_tract)
 }
 
+switch_plot_values <- function(value) {
+  # Switch for determining group, coloring
+  #
+  # Used for keeping colors, labels consistent
+  # across plots.
+  #
+  # Arguments:
+  #   value = group factor (0-2), string
+  #
+  # Returns:
+  #   x_col, x_label = indexed lists
+  #     [[1]] = color, [[2]] = group label
+
+  x_col <- switch(value,
+    "0" = "blue",
+    "1" = "darkred",
+    "2" = "black"
+  )
+
+  x_label <- switch(value,
+    "0" = "Low",
+    "1" = "Med",
+    "2" = "High"
+  )
+
+  return(list(x_col, x_label))
+}
+
 
 # Test Nodes ----
 #
 # Conduct a GLM at each node of each tract,
-# and FDR correct for number of node comparisons. 
-# Then produce a plot of averaged FA values by 
-# group, and indicate where tracts differ (Low vs High)
-# after an FDR correction.
+#   and FDR correct for number of node comparisons.
+#   Then produce a plot of averaged FA values by
+#   group, and indicate where tracts differ (Low vs High)
+#   after an FDR correction.
 
 data_dir <- "/Users/nmuncy/Projects/emu_AFQ/analyses/"
 out_dir <- paste0(data_dir, "traditional/")
@@ -191,3 +217,207 @@ for (tract in tract_list) {
     device = "png"
   )
 }
+
+
+
+# Model MD ----
+#
+# Use the proposed workflow to investigate whether differences 
+# exist between High and Lows PARS-6 groups in spline fits of 
+# mean diffusivity.
+
+md_dir <- paste0(data_dir, "model_md/")
+tract <- "UNC_L"
+df_afq$group <- factor(df_afq$group)
+df_afq$sex <- factor(df_afq$sex)
+df_tract <- df_afq[which(df_afq$tractID == tract), ]
+
+# view data
+ggplot(data = df_tract) +
+  geom_smooth(mapping = aes(x = nodeID, y = dti_md, color = group))
+descdist(df_tract$dti_md, discrete = F) # lognormal or gamma, gamma recommended
+
+# model w/gamma
+fit_gamma <- bam(dti_md ~ group +
+  sex +
+  s(nodeID, by = group, k = 10) +
+  s(subjectID, bs = "re"),
+data = df_tract,
+family = Gamma(link = "logit"),
+method = "REML"
+)
+
+# determine k
+gam.check(fit_gamma, rep = 500)
+
+capture.output(
+  summary(fit_gamma),
+  file = paste0(
+    md_dir, "Stats_GAM-gamma_", tract, "_G3.txt"
+  )
+)
+
+# model tract with covariates
+fit_cov_pds <- bam(dti_md ~ group +
+  sex +
+  s(nodeID, by = group, k = 10) +
+  s(pds, by = sex) +
+  s(subjectID, bs = "re"),
+data = df_tract,
+family = Gamma(link = "logit"),
+method = "REML"
+)
+
+# determine k
+gam.check(fit_cov_pds, rep = 500)
+capture.output(
+  summary(fit_cov_pds),
+  file = paste0(
+    md_dir,
+    "Stats_GAM-cov_",
+    tract, "_G3.txt"
+  )
+)
+
+# compare head-to-head
+capture.output(
+  compareML(fit_gamma, fit_cov_pds),
+  file = paste0(
+    md_dir,
+    "Stats_GAM-comp_gam-cov_",
+    tract, "_G3.txt"
+  )
+)
+
+# generate predictions
+df_pred <- predict.bam(
+  fit_cov_pds,
+  exclude_terms = c("pds", "sex", "subjectID"),
+  values = list(pds = NULL, sex = NULL),
+  se.fit = T,
+  type = "response"
+)
+
+# convert predictions to dataframe
+df_pred <- data.frame(
+  Group = df_tract$group,
+  sex = df_tract$sex,
+  subjectID = df_tract$subjectID,
+  pds = df_tract$pds,
+  nodeID = df_tract$nodeID,
+  fit = df_pred$fit,
+  se.fit = df_pred$se.fit
+)
+
+# set up for plot
+h_tract <- switch_tract_name(tract)
+h_title <- paste0("GAM Fit of ", h_tract, " MD Values")
+
+h_cols <- c(
+  switch_plot_values("0")[[1]][1],
+  switch_plot_values("1")[[1]][1],
+  switch_plot_values("2")[[1]][1]
+)
+names(h_cols) <- c("0", "1", "2")
+h_breaks <- c("0", "1", "2")
+h_labels <- c(
+  switch_plot_values("0")[[2]][1],
+  switch_plot_values("1")[[2]][1],
+  switch_plot_values("2")[[2]][1]
+)
+
+# draw plot
+p <- ggplot(data = df_pred) +
+  geom_smooth(mapping = aes(x = nodeID, y = fit, color = Group)) +
+  ggtitle(h_title) +
+  ylab("Fit MD") +
+  xlab("Tract Node") +
+  theme(text = element_text(
+    family = "Times New Roman", face = "bold", size = 14
+  ))
+
+p + scale_color_manual(
+  values = h_cols,
+  breaks = h_breaks,
+  labels = h_labels
+)
+
+ggsave(
+  paste0(md_dir, "Plot_GAM_", tract, "_G3.png"),
+  units = "in",
+  width = 6,
+  height = 6,
+  device = "png"
+)
+
+# setup for plotting
+factor_a <- "0"
+factor_b <- "2"
+group_a <- switch_plot_values(factor_a)[[2]][1]
+group_b <- switch_plot_values(factor_b)[[2]][1]
+
+# determine sig nodes
+gam_model <- fit_cov_pds
+
+p_summary <- capture.output(plot_diff(gam_model,
+  view = "nodeID",
+  comp = list(group = c(factor_a, factor_b)),
+  rm.ranef = T
+))
+sig_regions <- p_summary[10:length(p_summary)]
+sig_regions <- gsub("\\t", "", sig_regions)
+
+# make list of start and end nodes, for shading
+sig_list <- as.list(strsplit(sig_regions, " - "))
+start_list <- as.numeric(sapply(sig_list, "[[", 1))
+end_list <- as.numeric(sapply(sig_list, "[[", 2))
+
+# determine bottom of plot
+p_est <- plot_diff(gam_model,
+  view = "nodeID",
+  comp = list(group = c(factor_a, factor_b)),
+  rm.ranef = T,
+  plot = F
+)
+h_min <- min(p_est$est)
+h_ci <- p_est[which(p_est$est == h_min), ]$CI
+min_val <- h_min - h_ci
+
+# set output
+png(
+  filename = paste0(
+    md_dir, "Plot_Diff_", tract, "_G3_pair.png"
+  ),
+  width = 600, height = 600
+)
+
+# draw plot
+par(mar = c(5, 5, 4, 2), family = "Times New Roman")
+plot_diff(gam_model,
+  view = "nodeID",
+  comp = list(group = c(factor_a, factor_b)),
+  rm.ranef = T,
+  main = paste0(
+    "Difference Scores, ", group_a, "-", group_b
+  ),
+  ylab = "Est. MD difference",
+  xlab = "Tract Node",
+  cex.lab = 2,
+  cex.axis = 2,
+  cex.main = 2,
+  cex.sub = 1.5,
+  col.diff = "red"
+)
+
+# shade significant regions
+for (h_ind in 1:length(start_list)) {
+  polygon(
+    x = c(rep(start_list[h_ind], 2), rep(end_list[h_ind], 2)),
+    y = c(0.035, min_val, min_val, 0.35),
+    col = rgb(1, 0, 0, 0.2),
+    border = NA
+  )
+}
+
+par(mar = c(5, 4, 4, 2))
+dev.off()
