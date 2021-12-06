@@ -4,10 +4,10 @@
 function Usage {
 	cat << USAGE
 
-	Wraps afq_step2_CLI.sh
+	Wraps step2_CLI.sh
 
 	This script will check for files required by AFQ and then
-	sbatch submit afq_step2_CLI.sh. Sbatch stdout/err will be
+	sbatch submit step2_CLI.sh. Sbatch stdout/err will be
 	captured in a time-stamped directory located at
 	<proc_dir>/derivatives/Slurm_out.
 
@@ -16,16 +16,16 @@ function Usage {
 
 	Required Arguments:
 		-c config.toml = AFQ config.toml file
-			same file as from afq_step1_setup.py -c <config-file>
+			same file as from step1_setup.py -c <config-file>
 		-p </path/to/proc_dir> = location of BIDS-structured project directory
-			same dir as afq_step1_submit.sh -p <proc_dir>
+			same dir as step1_submit.sh -p <proc_dir>
 
 	Optional Arguments:
 		-t </path/to/AFQ_data> = location of AFQ_data template directory
 			useful for HPC environments where AFQ API cannot download needed files
 
 	Example Usage:
-		./afq_step2_submit.sh \\
+		./step2_submit.sh \\
 			-c ~/compute/emu_AFQ/config.toml \\
 			-p /scratch/madlab/emu_AFQ \\
 			-t /home/data/madlab/atlases/AFQ_data
@@ -97,4 +97,4 @@ mkdir -p $slurm_dir
 sbatch \
 	-e ${slurm_dir}/err.txt \
 	-o ${slurm_dir}/out.txt \
-	afq_step2_CLI.sh $config_file
+	step2_CLI.sh $config_file

@@ -4,11 +4,11 @@ This script will edit the BIDs file dataset_description.json
 with values needed by AFQ. It will then edit the AFQ
 configuration file config.toml with project-specific values.
 
-It is wrapped by afq_step1_submit.sh.
+It is wrapped by step1_submit.sh.
 
 Examples
 --------
-python afq_step1_setup.py \\
+python step1_setup.py \\
     -c config.toml \\
     -b /scratch/madlab/emu_AFQ \\
     -d /scratch/madlab/emu_AFQ/derivatives/dwi_preproc \\
@@ -41,11 +41,7 @@ def get_args():
     )
     required_args = parser.add_argument_group("Required Arguments")
     required_args.add_argument(
-        "-c",
-        "--config-file",
-        help="/path/to/afq/config.toml",
-        type=str,
-        required=True,
+        "-c", "--config-file", help="/path/to/afq/config.toml", type=str, required=True,
     )
     required_args.add_argument(
         "-b",

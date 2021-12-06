@@ -21,7 +21,7 @@ function Usage {
 	Example Usage:
 		sbatch \\
             -e err.txt -o out.txt \\
-            afq_step2_CLI.sh /path/to/config.toml
+            step2_CLI.sh /path/to/config.toml
 USAGE
 }
 

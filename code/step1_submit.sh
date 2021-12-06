@@ -3,7 +3,7 @@
 function Usage {
     cat << USAGE
 
-    Copy data to a working directory, wrap afq_step1_setup.py.
+    Copy data to a working directory, wrap step1_setup.py.
 
     This script will copy data from a BIDS-structured project
     directory to a BIDS-structured working/processing directory.
@@ -20,7 +20,7 @@ function Usage {
 
     Required Arguments:
         -c </path/to/code_dir> = location of afq_step1_setup.py
-            Note: for wrapping python, have config.toml in the code_dir
+            Note: for lazy wrapping python, have config.toml in the code_dir
         -d </path/to/data_dir> = location of BIDS-structured stored project
             data
         -p </path/to/proc_dir> = location to where data will be copied,
@@ -32,8 +32,8 @@ function Usage {
         -j <json-file> = BIDS dataset_description.json sidecar
 
     Example Usage:
-        ./afq_step1_submit.sh \\
-            -c /home/nmuncy/compute/emu_AFQ \\
+        ./step1_submit.sh \\
+            -c /home/nmuncy/compute/emu_AFQ/code \\
             -d /home/data/madlab/McMakin_EMUR01 \\
             -p /scratch/madlab/emu_AFQ \\
             -s ses-S2 \\
@@ -196,7 +196,7 @@ done
 
 # submit python
 echo -e "\n \t Starting python script ..."
-python ${code_dir}/afq_step1_setup.py \
+python ${code_dir}/step1_setup.py \
     -c ${code_dir}/config.toml \
     -b $proc_dir \
     -d $work_dir \
