@@ -416,7 +416,7 @@ for (h_ind in 1:length(start_list)) {
   polygon(
     x = c(rep(start_list[h_ind], 2), rep(end_list[h_ind], 2)),
     y = c(0.035, min_val, min_val, 0.35),
-    col = rgb(1, 0, 0, 0.2),
+    col = rgb(1, 0, 0, 0.1),
     border = NA
   )
 }
