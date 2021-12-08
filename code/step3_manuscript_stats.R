@@ -858,7 +858,7 @@ plot_spline_diff_pair <- function(gam_model,
     polygon(
       x = c(rep(start_list[h_ind],2), rep(end_list[h_ind], 2)), 
       y = c(0, min_val, min_val, 0), 
-      col = rgb(1, 0, 0, 0.2), 
+      col = rgb(1, 0, 0, 0.1), 
       border = NA
       )
   }

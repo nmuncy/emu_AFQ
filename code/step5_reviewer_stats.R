@@ -7,7 +7,9 @@ library("itsadug")
 # Notes ----
 #
 # This file contains code to address reviewer questions
-#  and concerns, in addition to updates to step3.
+#  and concerns, in addition to updates to step3. Namely
+#  a "point-wise" of l_unc FA values has been added, 
+#  and a GAM of l_unc MD values.
 
 
 # Set Switches ----
