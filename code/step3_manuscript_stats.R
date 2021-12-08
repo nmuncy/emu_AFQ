@@ -9,7 +9,7 @@ library("dplyr")
 library("lme4")
 library("ggpubr")
 library("lsr")
-library("rstatix")
+library("heplots")
 
 
 # Notes ----
@@ -48,6 +48,8 @@ lm_stats_dir <- paste0(data_dir, "stats_lm/")
 table_dir <- paste0(data_dir, "tables/")
 memory_dir <- paste0(data_dir, "memory/")
 trad_dir <- paste0(data_dir, "traditional/")
+
+capture.output(sessionInfo(), file = paste0(data_dir, "R_session_info.txt"))
 
 
 # General Functions ------
@@ -424,21 +426,29 @@ calc_memory_stats <- function(df_afq, g_type) {
     file = paste0(memory_dir, "Stats_G", g_type, "_MANOVA.txt")
   )
 
-  # Stats 2: investigate mem x valence intx
-  #   detected in Stats 1 when group_type = 3
-  h_man <- manova(
-    cbind(neu_lgi, neg_lgi, neu_ldi, neg_ldi) ~ group,
-    data = df_mem
-  )
-  capture.output(
-    summary.aov(h_man),
-    file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval.txt")
-  )
-
-  # Stats 3: Tukey for g3 neg_lgi detected
-  #   in Stats 2 when group_type = 3
   if (g_type == 3){
     
+    # Stats 2: investigate mem x valence intx
+    #   detected in Stats 1 when group_type = 3
+    h_man <- manova(
+      cbind(neu_lgi, neg_lgi, neu_ldi, neg_ldi) ~ group,
+      data = df_mem
+    )
+    capture.output(
+      etasq(Anova(h_man), partial = TRUE),
+      file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval_eta.txt")
+    )
+    capture.output(
+      summary(h_man),
+      file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval_omnibus.txt")
+    )
+    capture.output(
+      summary.aov(h_man),
+      file = paste0(memory_dir, "Stats_G", g_type, "_lgdiXval_aov.txt")
+    )
+  
+    # Stats 3: Tukey for g3 neg_lgi detected
+    #   in Stats 2 when group_type = 3
     group_fac <- as.numeric(df_mem$group)
     
     group_value <- vector()
@@ -448,9 +458,18 @@ calc_memory_stats <- function(df_afq, g_type) {
     df_mem$group <- group_value
     
     h_lm <- lm(neg_lgi ~ group, data = df_mem)
-    h_av <- aov(h_lm) %>% tukey_hsd()
+    capture.output(
+      summary(h_lm),
+      file = paste0(memory_dir, "Stats_G", g_type, "_neglgiXgroup.txt")
+    )
+    capture.output(
+      etaSquared(h_lm),
+      file = paste0(memory_dir, "Stats_G", g_type, "_neglgiXgroup_eta.txt")
+    )
     
     # make a plot, draw tukey stats
+    h_av <- aov(h_lm) %>% tukey_hsd()
+    
     h_colors <- c(
       switch_plot_values("2", g_type)[[1]],
       switch_plot_values("0", g_type)[[1]],
