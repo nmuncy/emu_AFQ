@@ -1,6 +1,6 @@
 # emu_AFQ
 
-Repo containing code, documents, and data used in the manuscript "General Additive Models Address Statistical Issues in Diffusion MRI: An Example with Clinically Anxious Adolescents".
+Repo containing code, documents, and data used in the manuscript "General Additive Models Address Statistical Issues in Diffusion MRI: An Example with Clinically Anxious Adolescents", https://www.sciencedirect.com/science/article/pii/S221315822200002X.
 
 # Code
 
